@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -23,7 +23,7 @@
 define(['underscore', 'angular', 'text!partials/roombar.html'], function(_, angular, template) {
 
 	// roomBar
-	return ["$window", "rooms", "$timeout", function($window, rooms, $timeout) {
+	return ["$window", "rooms", "$timeout", "safeApply", function($window, rooms, $timeout, safeApply) {
 
 		var link = function($scope, $element) {
 
@@ -32,15 +32,17 @@ define(['underscore', 'angular', 'text!partials/roombar.html'], function(_, angu
 				$scope.newRoomName = "";
 			};
 
-			//console.log("roomBar directive link", arguments);
-			//$scope.layout.roombar = true;
-
 			$scope.save = function() {
 				if ($scope.roombarform.$invalid) {
 					return;
 				}
 				var roomName = rooms.joinByName($scope.newRoomName);
 				if (roomName !== $scope.currentRoomName) {
+					// Room name accepted.
+					$scope.roombarform.$setPristine();
+				} else {
+					// Room name did not apply. Reset new name and form.
+					$scope.newRoomName = roomName;
 					$scope.roombarform.$setPristine();
 				}
 			};
@@ -51,13 +53,17 @@ define(['underscore', 'angular', 'text!partials/roombar.html'], function(_, angu
 			};
 
 			$scope.$on("room.updated", function(ev, room) {
-				$scope.currentRoomName = $scope.newRoomName = room.Name;
-				if ($scope.currentRoomName && !$scope.peer) {
-					$scope.layout.roombar = true;
-				}
+				safeApply($scope, function(scope) {
+					scope.currentRoomName = scope.newRoomName = room.Name;
+					if (scope.currentRoomName && !scope.peer) {
+						scope.layout.roombar = true;
+					}
+				});
 			});
 
-			$scope.$on("room.left", clearRoomName);
+			$scope.$on("room.left", function() {
+				safeApply($scope, clearRoomName);
+			});
 
 			$scope.$watch("newRoomName", function(name) {
 				if (name === $scope.currentRoomName) {

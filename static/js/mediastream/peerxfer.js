@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -23,6 +23,7 @@
 define(['jquery', 'underscore', 'mediastream/peercall', 'mediastream/tokens', 'webrtc.adapter'], function($, _, PeerCall, tokens) {
 
 	var xfersIds = 0;
+	var PeerXfer;
 
 	// Register ourselves for tokens.
 	tokens.registerHandler("xfer", function(webrtc, id, token, from) {
@@ -32,7 +33,7 @@ define(['jquery', 'underscore', 'mediastream/peercall', 'mediastream/tokens', 'w
 	});
 
 	// PeerXfer inherits from PeerCall.
-	var PeerXfer = function(webrtc, id, token, to) {
+	PeerXfer = function(webrtc, id, token, to) {
 
 		if (id === null) {
 			id = xfersIds++;
@@ -48,11 +49,14 @@ define(['jquery', 'underscore', 'mediastream/peercall', 'mediastream/tokens', 'w
 			audio: false,
 			video: false
 		};
-		this.sdpConstraints = {};
 		// SCTP is supported from Chrome M31.
 		// No need to pass DTLS constraint as it is on by default in Chrome M31.
 		// For SCTP, reliable and ordered is true by default.
-		this.pcConstraints = {};
+		this.pcConstraints = {
+			mandatory: {},
+			optional: []
+		};
+		this.offerOptions = {};
 
 		// Inject token into sessiondescription and ice candidate data.
 		this.e.on("sessiondescription icecandidate", _.bind(function(event, data) {

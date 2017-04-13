@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -22,144 +22,44 @@
 package main
 
 import (
-	"app/spreed-webrtc-server/sleepy"
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/strukturag/goacceptlanguageparser"
-	"github.com/strukturag/httputils"
-	"github.com/strukturag/phoenix"
 	"html/template"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path"
+	"path/filepath"
 	goruntime "runtime"
-	"strconv"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/strukturag/spreed-webrtc/go/channelling"
+	"github.com/strukturag/spreed-webrtc/go/channelling/api"
+	"github.com/strukturag/spreed-webrtc/go/channelling/server"
+	"github.com/strukturag/spreed-webrtc/go/natsconnection"
+
+	"github.com/gorilla/mux"
+	"github.com/strukturag/httputils"
+	"github.com/strukturag/phoenix"
+	"github.com/strukturag/sloth"
 )
 
 var version = "unreleased"
 var defaultConfig = "./server.conf"
 
 var templates *template.Template
-var config *Config
-
-// Helper to retrieve languages from request.
-func getRequestLanguages(r *http.Request, supportedLanguages []string) []string {
-
-	acceptLanguageHeader, ok := r.Header["Accept-Language"]
-	var langs []string
-	if ok {
-		langs = goacceptlanguageparser.ParseAcceptLanguage(acceptLanguageHeader[0], supportedLanguages)
-	}
-	return langs
-
-}
-
-func mainHandler(w http.ResponseWriter, r *http.Request) {
-
-	handleRoomView("", w, r)
-
-}
-
-func roomHandler(w http.ResponseWriter, r *http.Request) {
-
-	vars := mux.Vars(r)
-	handleRoomView(vars["room"], w, r)
-
-}
-
-func makeImageHandler(buddyImages ImageCache, expires time.Duration) http.HandlerFunc {
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		vars := mux.Vars(r)
-		image := buddyImages.Get(vars["imageid"])
-		if image == nil {
-			http.Error(w, "Unknown image", http.StatusNotFound)
-			return
-		}
-
-		w.Header().Set("Content-Type", image.mimetype)
-		w.Header().Set("ETag", image.lastChangeId)
-		age := time.Now().Sub(image.lastChange)
-		if age >= time.Second {
-			w.Header().Set("Age", strconv.Itoa(int(age.Seconds())))
-		}
-		if expires >= time.Second {
-			w.Header().Set("Expires", time.Now().Add(expires).Format(time.RFC1123))
-			w.Header().Set("Cache-Control", "public, no-transform, max-age="+strconv.Itoa(int(expires.Seconds())))
-		}
-		http.ServeContent(w, r, "", image.lastChange, bytes.NewReader(image.data))
-	}
-
-}
-
-func handleRoomView(room string, w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.Header().Set("Expires", "-1")
-	w.Header().Set("Cache-Control", "private, max-age=0")
-
-	csp := false
-
-	if config.contentSecurityPolicy != "" {
-		w.Header().Set("Content-Security-Policy", config.contentSecurityPolicy)
-		csp = true
-	}
-	if config.contentSecurityPolicyReportOnly != "" {
-		w.Header().Set("Content-Security-Policy-Report-Only", config.contentSecurityPolicyReportOnly)
-		csp = true
-	}
-
-	scheme := "http"
-
-	// Detect if the request was made with SSL.
-	ssl := r.TLS != nil
-	proto, ok := r.Header["X-Forwarded-Proto"]
-	if ok {
-		ssl = proto[0] == "https"
-		scheme = "https"
-	}
-
-	// Get languages from request.
-	langs := getRequestLanguages(r, []string{})
-	if len(langs) == 0 {
-		langs = append(langs, "en")
-	}
-
-	// Prepare context to deliver to HTML..
-	context := &Context{Cfg: config, App: "main", Host: r.Host, Scheme: scheme, Ssl: ssl, Csp: csp, Languages: langs, Room: room}
-
-	// Get URL parameters.
-	r.ParseForm()
-
-	// Check if incoming request is a crawler which supports AJAX crawling.
-	// See https://developers.google.com/webmasters/ajax-crawling/docs/getting-started for details.
-	if _, ok := r.Form["_escaped_fragment_"]; ok {
-		// Render crawlerPage template..
-		err = templates.ExecuteTemplate(w, "crawlerPage", &context)
-	} else {
-		// Render mainPage template.
-		err = templates.ExecuteTemplate(w, "mainPage", &context)
-	}
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-}
+var templatesExtraDHead template.HTML
+var templatesExtraDBody template.HTML
+var config *channelling.Config
 
 func runner(runtime phoenix.Runtime) error {
-
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
 	rootFolder, err := runtime.GetString("http", "root")
@@ -192,19 +92,23 @@ func runner(runtime phoenix.Runtime) error {
 		}()
 	}
 
+	pipelinesEnabled, err := runtime.GetBool("app", "pipelinesEnabled")
+	if err != nil {
+		pipelinesEnabled = false
+	}
+
 	var sessionSecret []byte
 	sessionSecretString, err := runtime.GetString("app", "sessionSecret")
 	if err != nil {
 		return fmt.Errorf("No sessionSecret in config file.")
-	} else {
-		sessionSecret, err = hex.DecodeString(sessionSecretString)
-		if err != nil {
-			log.Println("Warning: sessionSecret value is not a hex encoded", err)
-			sessionSecret = []byte(sessionSecretString)
-		}
-		if len(sessionSecret) < 32 {
-			return fmt.Errorf("Length of sessionSecret must be at least 32 bytes.")
-		}
+	}
+	sessionSecret, err = hex.DecodeString(sessionSecretString)
+	if err != nil {
+		log.Println("Warning: sessionSecret value is not a hex encoded", err)
+		sessionSecret = []byte(sessionSecretString)
+	}
+	if len(sessionSecret) < 32 {
+		return fmt.Errorf("Length of sessionSecret must be at least 32 bytes.")
 	}
 
 	if len(sessionSecret) < 32 {
@@ -215,19 +119,18 @@ func runner(runtime phoenix.Runtime) error {
 	encryptionSecretString, err := runtime.GetString("app", "encryptionSecret")
 	if err != nil {
 		return fmt.Errorf("No encryptionSecret in config file.")
-	} else {
-		encryptionSecret, err = hex.DecodeString(encryptionSecretString)
-		if err != nil {
-			log.Println("Warning: encryptionSecret value is not a hex encoded", err)
-			encryptionSecret = []byte(encryptionSecretString)
-		}
-		switch l := len(encryptionSecret); {
-		case l == 16:
-		case l == 24:
-		case l == 32:
-		default:
-			return fmt.Errorf("Length of encryptionSecret must be exactly 16, 24 or 32 bytes to select AES-128, AES-192 or AES-256.")
-		}
+	}
+	encryptionSecret, err = hex.DecodeString(encryptionSecretString)
+	if err != nil {
+		log.Println("Warning: encryptionSecret value is not a hex encoded", err)
+		encryptionSecret = []byte(encryptionSecretString)
+	}
+	switch l := len(encryptionSecret); {
+	case l == 16:
+	case l == 24:
+	case l == 32:
+	default:
+		return fmt.Errorf("Length of encryptionSecret must be exactly 16, 24 or 32 bytes to select AES-128, AES-192 or AES-256.")
 	}
 
 	var turnSecret []byte
@@ -249,20 +152,49 @@ func runner(runtime phoenix.Runtime) error {
 		}
 	}
 
-	var tokenProvider TokenProvider
+	var tokenProvider channelling.TokenProvider
 	if tokenFile != "" {
 		log.Printf("Using token authorization from %s\n", tokenFile)
-		tokenProvider = TokenFileProvider(tokenFile)
+		tokenProvider = channelling.TokenFileProvider(tokenFile)
 	}
 
+	// Nats pub/sub supports.
+	natsChannellingTrigger, _ := runtime.GetBool("nats", "channelling_trigger")
+	natsChannellingTriggerSubject, _ := runtime.GetString("nats", "channelling_trigger_subject")
+	if natsURL, err := runtime.GetString("nats", "url"); err == nil {
+		if natsURL != "" {
+			natsconnection.DefaultURL = natsURL
+		}
+	}
+	if natsEstablishTimeout, err := runtime.GetInt("nats", "establishTimeout"); err == nil {
+		if natsEstablishTimeout != 0 {
+			natsconnection.DefaultEstablishTimeout = time.Duration(natsEstablishTimeout) * time.Second
+		}
+	}
+	natsClientId, _ := runtime.GetString("nats", "client_id")
+
 	// Load remaining configuration items.
-	config = NewConfig(runtime, tokenProvider != nil)
+	config, err = server.NewConfig(runtime, tokenProvider != nil)
+	if err != nil {
+		return err
+	}
 
 	// Load templates.
-	tt := template.New("")
-	tt.Delims("<%", "%>")
+	templates = template.New("")
+	templates.Delims("<%", "%>")
 
-	templates, err = tt.ParseGlob(path.Join(rootFolder, "html", "*.html"))
+	// Load html templates folder
+	err = filepath.Walk(path.Join(rootFolder, "html"), func(path string, info os.FileInfo, err error) error {
+		if err == nil {
+			if strings.HasSuffix(path, ".html") {
+				_, err = templates.ParseFiles(path)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to load templates: %s", err)
 	}
@@ -279,6 +211,21 @@ func runner(runtime phoenix.Runtime) error {
 		}
 		log.Printf("Loaded extra templates from: %s", extraFolder)
 	}
+
+	// Load extra.d folder
+	extraDFolder, err := runtime.GetString("app", "extra.d")
+	if err == nil {
+		if !httputils.HasDirPath(extraDFolder) {
+			return fmt.Errorf("Configured extra.d '%s' is not a directory.", extraDFolder)
+		}
+		err = loadExtraD(extraDFolder)
+		if err != nil {
+			return fmt.Errorf("Failed to process extra.d folder: %s", err)
+		}
+	}
+
+	// Define incoming channeling API limit it byte. Larger messages will be discarded.
+	incomingCodecLimit := 1024 * 1024 // 1MB
 
 	// Create realm string from config.
 	computedRealm := fmt.Sprintf("%s.%s", serverRealm, config.Token)
@@ -302,13 +249,13 @@ func runner(runtime phoenix.Runtime) error {
 	// Try to increase number of file open files. This only works as root.
 	maxfd, err := runtime.GetInt("http", "maxfd")
 	if err == nil {
-		rLimit.Max = uint64(maxfd)
-		rLimit.Cur = uint64(maxfd)
+		rLimit.Max = rlimitType(maxfd)
+		rLimit.Cur = rlimitType(maxfd)
 		err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 		if err != nil {
 			log.Println("Error setting max open files", err)
 		} else {
-			log.Printf("Set max open files successfully to %d\n", uint64(maxfd))
+			log.Printf("Set max open files successfully to %d\n", rlimitType(maxfd))
 		}
 	}
 
@@ -334,56 +281,153 @@ func runner(runtime phoenix.Runtime) error {
 		runtime.DefaultHTTPSHandler(r)
 	}
 
+	// Prepare services.
+	apiConsumer := channelling.NewChannellingAPIConsumer()
+	buddyImages := channelling.NewImageCache()
+	codec := channelling.NewCodec(incomingCodecLimit)
+	roomManager := channelling.NewRoomManager(config, codec)
+	hub := channelling.NewHub(config, sessionSecret, encryptionSecret, turnSecret, codec)
+	tickets := channelling.NewTickets(sessionSecret, encryptionSecret, computedRealm)
+	sessionManager := channelling.NewSessionManager(config, tickets, hub, roomManager, roomManager, buddyImages, sessionSecret)
+	statsManager := channelling.NewStatsManager(hub, roomManager, sessionManager)
+	busManager := channelling.NewBusManager(apiConsumer, natsClientId, natsChannellingTrigger, natsChannellingTriggerSubject)
+	pipelineManager := channelling.NewPipelineManager(busManager, sessionManager, sessionManager, sessionManager)
+	if err := roomManager.SetBusManager(busManager); err != nil {
+		return err
+	}
+
+	// Create API.
+	channellingAPI := api.New(config, roomManager, tickets, sessionManager, statsManager, hub, hub, hub, busManager, pipelineManager)
+	apiConsumer.SetChannellingAPI(channellingAPI)
+
+	// Start bus.
+	busManager.Start()
+
 	// Add handlers.
-	buddyImages := NewImageCache()
-	codec := NewCodec()
-	roomManager := NewRoomManager(config, codec)
-	hub := NewHub(config, sessionSecret, encryptionSecret, turnSecret, codec)
-	tickets := NewTickets(sessionSecret, encryptionSecret, computedRealm)
-	sessionManager := NewSessionManager(config, tickets, sessionSecret)
-	statsManager := NewStatsManager(hub, roomManager, sessionManager)
-	channellingAPI := NewChannellingAPI(config, roomManager, tickets, sessionManager, statsManager, hub, hub, hub, roomManager, buddyImages)
 	r.HandleFunc("/", httputils.MakeGzipHandler(mainHandler))
 	r.Handle("/static/img/buddy/{flags}/{imageid}/{idx:.*}", http.StripPrefix(config.B, makeImageHandler(buddyImages, time.Duration(24)*time.Hour)))
 	r.Handle("/static/{path:.*}", http.StripPrefix(config.B, httputils.FileStaticServer(http.Dir(rootFolder))))
 	r.Handle("/robots.txt", http.StripPrefix(config.B, http.FileServer(http.Dir(path.Join(rootFolder, "static")))))
 	r.Handle("/favicon.ico", http.StripPrefix(config.B, http.FileServer(http.Dir(path.Join(rootFolder, "static", "img")))))
-	r.Handle("/ws", makeWSHandler(statsManager, sessionManager, codec, channellingAPI))
-	r.HandleFunc("/{room}", httputils.MakeGzipHandler(roomHandler))
+	r.HandleFunc("/.well-known/spreed-configuration", wellKnownHandler)
 
-	// Add API end points.
-	api := sleepy.NewAPI()
-	api.SetMux(r.PathPrefix("/api/v1/").Subrouter())
-	api.AddResource(&Rooms{}, "/rooms")
-	api.AddResource(config, "/config")
-	api.AddResourceWithWrapper(&Tokens{tokenProvider}, httputils.MakeGzipHandler, "/tokens")
+	// Sandbox handler.
+	r.HandleFunc("/sandbox/{origin_scheme}/{origin_host}/{sandbox}.html", httputils.MakeGzipHandler(sandboxHandler))
+
+	// Add RESTful API end points.
+	rest := sloth.NewAPI()
+	rest.SetMux(r.PathPrefix("/api/v1/").Subrouter())
+	rest.AddResource(&server.Rooms{}, "/rooms")
+	rest.AddResource(config, "/config")
+	rest.AddResourceWithWrapper(&server.Tokens{tokenProvider}, httputils.MakeGzipHandler, "/tokens")
+
+	var users *server.Users
 	if config.UsersEnabled {
 		// Create Users handler.
-		users := NewUsers(hub, tickets, sessionManager, config.UsersMode, serverRealm, runtime)
-		api.AddResource(&Sessions{tickets, hub, users}, "/sessions/{id}/")
+		users = server.NewUsers(hub, tickets, sessionManager, config.UsersMode, serverRealm, runtime)
+		rest.AddResource(&server.Sessions{tickets, hub, users}, "/sessions/{id}/")
 		if config.UsersAllowRegistration {
-			api.AddResource(users, "/users")
+			rest.AddResource(users, "/users")
 		}
 	}
 	if statsEnabled {
-		api.AddResourceWithWrapper(&Stats{statsManager}, httputils.MakeGzipHandler, "/stats")
+		rest.AddResourceWithWrapper(&server.Stats{statsManager}, httputils.MakeGzipHandler, "/stats")
 		log.Println("Stats are enabled!")
+	}
+	if pipelinesEnabled {
+		pipelineManager.Start()
+		rest.AddResource(&server.Pipelines{pipelineManager, channellingAPI}, "/pipelines/{id}")
+		log.Println("Pipelines API is enabled!")
 	}
 
 	// Add extra/static support if configured and exists.
 	if extraFolder != "" {
-		extraFolderStatic := path.Join(extraFolder, "static")
+		extraFolderStatic, _ := filepath.Abs(path.Join(extraFolder, "static"))
 		if _, err = os.Stat(extraFolderStatic); err == nil {
 			r.Handle("/extra/static/{path:.*}", http.StripPrefix(fmt.Sprintf("%sextra", config.B), httputils.FileStaticServer(http.Dir(extraFolder))))
 			log.Printf("Added URL handler /extra/static/... for static files in %s/...\n", extraFolderStatic)
 		}
 	}
 
+	// Add extra.d/static support if configured.
+	if extraDFolder != "" {
+		extraDFolderStatic, _ := filepath.Abs(extraDFolder)
+		r.Handle("/extra.d/static/{ver}/{extra}/{path:.*}", http.StripPrefix(fmt.Sprintf("%sextra.d/static", config.B), rewriteExtraDUrl(httputils.FileStaticServer(http.Dir(extraDFolderStatic)))))
+		log.Printf("Added URL handler /extra.d/static/... for static files in %s/.../static/... \n", extraDFolderStatic)
+	}
+
+	// Finally add websocket handler.
+	r.Handle("/ws", makeWSHandler(statsManager, sessionManager, codec, channellingAPI, users))
+
+	// Simple room handler.
+	r.HandleFunc("/{room}", httputils.MakeGzipHandler(roomHandler))
+
+	// Map everything else to a room when it is a GET.
+	rooms := r.PathPrefix("/").Methods("GET").Subrouter()
+	rooms.HandleFunc("/{room:.*}", httputils.MakeGzipHandler(roomHandler))
+
 	return runtime.Start()
 }
 
+func loadExtraD(extraDFolder string) error {
+	f, err := os.Open(extraDFolder)
+	if err != nil {
+		return err
+	}
+
+	extras, err := f.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	f.Close()
+
+	// Sort by name.
+	sort.Strings(extras)
+
+	var headBuf bytes.Buffer
+	var bodyBuf bytes.Buffer
+	context := &channelling.Context{
+		Cfg: config,
+	}
+
+	for _, extra := range extras {
+		info, err := os.Stat(filepath.Join(extraDFolder, extra))
+		if err != nil {
+			log.Println("Failed to add extra.d folder", extra, err)
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+
+		context.S = fmt.Sprintf("extra.d/%s/%s", config.S, extra)
+		extraDTemplates := template.New("")
+		extraDTemplates.Delims("<%", "%>")
+		extraBase := path.Join(extraDFolder, extra)
+		extraDTemplates.ParseFiles(path.Join(extraBase, "head.html"), path.Join(extraBase, "body.html"))
+		if headTemplate := extraDTemplates.Lookup("head.html"); headTemplate != nil {
+			if err := headTemplate.Execute(&headBuf, context); err != nil {
+				log.Println("Failed to parse extra.d template", extraBase, "head.html", err)
+			}
+
+		}
+		if bodyTemplate := extraDTemplates.Lookup("body.html"); bodyTemplate != nil {
+			if err := bodyTemplate.Execute(&bodyBuf, context); err != nil {
+				log.Println("Failed to parse extra.d template", extraBase, "body.html", err)
+			}
+		}
+	}
+
+	templatesExtraDHead = template.HTML(headBuf.String())
+	templatesExtraDBody = template.HTML(bodyBuf.String())
+
+	return nil
+}
+
 func boot() error {
+	defaultConfigPath := flag.String("dc", "", "Default configuration file.")
 	configPath := flag.String("c", defaultConfig, "Configuration file.")
+	overrideConfigPath := flag.String("oc", "", "Override configuration file.")
 	logPath := flag.String("l", "", "Log file, defaults to stderr.")
 	showVersion := flag.Bool("v", false, "Display version number and exit.")
 	memprofile := flag.String("memprofile", "", "Write memory profile to this file.")
@@ -400,7 +444,9 @@ func boot() error {
 	}
 
 	return phoenix.NewServer("server", version).
+		DefaultConfig(defaultConfigPath).
 		Config(configPath).
+		OverrideConfig(overrideConfigPath).
 		Log(logPath).
 		CpuProfile(cpuprofile).
 		MemProfile(memprofile).

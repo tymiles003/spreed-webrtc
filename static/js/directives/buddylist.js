@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -29,10 +29,19 @@ define(['underscore', 'text!partials/buddylist.html'], function(_, template) {
 
 		var controller = ['$scope', '$element', '$attrs', function($scope, $element, $attrs) {
 
+			var buddylist = $scope.buddylist = buddyList.buddylist($element, $scope, {});
+			var onJoined = _.bind(buddylist.onJoined, buddylist);
+			var onLeft = _.bind(buddylist.onLeft, buddylist);
+			var onStatus = _.bind(buddylist.onStatus, buddylist);
+			var onContactAdded = _.bind(buddylist.onContactAdded, buddylist);
+			var onContactRemoved = _.bind(buddylist.onContactRemoved, buddylist);
+			var onContactUpdated = _.bind(buddylist.onContactUpdated, buddylist);
+
+			var inRoom = false;
+
 			$scope.layout.buddylist = false;
 			$scope.layout.buddylistAutoHide = true;
 
-			var inRoom = false;
 			var updateBuddyListVisibility = function() {
 				if (inRoom && !$scope.peer) {
 					$scope.layout.buddylist = true;
@@ -45,6 +54,13 @@ define(['underscore', 'text!partials/buddylist.html'], function(_, template) {
 
 			webrtc.e.on("done", function() {
 				$scope.$apply(updateBuddyListVisibility);
+			});
+
+			$scope.$watch("peer", function() {
+				if ($scope.peer) {
+					// Also reset the buddylist if the peer is cleared after the "done" event.
+					updateBuddyListVisibility();
+				}
 			});
 
 			$scope.$on("room.joined", function(ev) {
@@ -87,13 +103,6 @@ define(['underscore', 'text!partials/buddylist.html'], function(_, template) {
 
 			};
 
-			var buddylist = $scope.buddylist = buddyList.buddylist($element, $scope, {});
-			var onJoined = _.bind(buddylist.onJoined, buddylist);
-			var onLeft = _.bind(buddylist.onLeft, buddylist);
-			var onStatus = _.bind(buddylist.onStatus, buddylist);
-			var onContactAdded = _.bind(buddylist.onContactAdded, buddylist);
-			var onContactRemoved = _.bind(buddylist.onContactRemoved, buddylist);
-			var onContactUpdated = _.bind(buddylist.onContactUpdated, buddylist);
 			api.e.on("received.userleftorjoined", function(event, dataType, data) {
 				if (dataType === "Left") {
 					onLeft(data);
@@ -141,6 +150,9 @@ define(['underscore', 'text!partials/buddylist.html'], function(_, template) {
 				}
 				scope.$apply();
 			});
+			if (contacts.enabled) {
+				iElement.addClass("with-contacts");
+			}
 
 		};
 

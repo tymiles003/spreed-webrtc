@@ -8,42 +8,15 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Spreed WebRTC 1.0\n"
 "Report-Msgid-Bugs-To: simon@struktur.de\n"
-"POT-Creation-Date: 2014-12-08 16:48+0100\n"
-"PO-Revision-Date: 2014-12-08 16:48+0100\n"
+"POT-Creation-Date: 2016-02-17 14:15+0100\n"
+"PO-Revision-Date: 2016-02-17 14:16+0100\n"
 "Last-Translator: Simon Eisenmann <simon@struktur.de>\n"
 "Language-Team: struktur AG <opensource@struktur.de>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 0.9.6\n"
-
-msgid "Share a YouTube video"
-msgstr "Ein YouTube Video teilen"
-
-msgid "Share a file as presentation"
-msgstr "Datei als Präsentation teilen."
-
-msgid "Share your screen"
-msgstr "Bildschirm freigeben"
-
-msgid "Chat"
-msgstr "Chat"
-
-msgid "Contacts"
-msgstr "Kontakte"
-
-msgid "Mute microphone"
-msgstr "Mikrofon abschalten"
-
-msgid "Turn camera off"
-msgstr "Kamera abschalten"
-
-msgid "Settings"
-msgstr "Einstellungen"
-
-msgid "Your audio level"
-msgstr "Ihr Audio-Pegel"
+"Generated-By: Babel 1.3\n"
 
 msgid "Standard view"
 msgstr "Standardansicht"
@@ -128,10 +101,10 @@ msgid "Clear chat"
 msgstr "Chat löschen"
 
 msgid "is typing..."
-msgstr " schreibt gerade..."
+msgstr "schreibt gerade..."
 
 msgid "has stopped typing..."
-msgstr " schreibt nicht mehr..."
+msgstr "schreibt nicht mehr..."
 
 msgid "Type here to chat..."
 msgstr "Nachricht hier eingeben..."
@@ -197,6 +170,30 @@ msgstr "Nochmal versuchen"
 msgid "Download failed."
 msgstr "Fehler beim Download."
 
+msgid "Share a YouTube video"
+msgstr "Ein YouTube Video teilen"
+
+msgid "Share a file as presentation"
+msgstr "Datei als Präsentation teilen."
+
+msgid "Share your screen"
+msgstr "Bildschirm freigeben"
+
+msgid "Chat"
+msgstr "Chat"
+
+msgid "Contacts"
+msgstr "Kontakte"
+
+msgid "Mute microphone"
+msgstr "Mikrofon abschalten"
+
+msgid "Turn camera off"
+msgstr "Kamera abschalten"
+
+msgid "Settings"
+msgstr "Einstellungen"
+
 msgid "Loading presentation ..."
 msgstr "Präsentation wird geladen..."
 
@@ -231,11 +228,11 @@ msgstr "Raum wechseln"
 msgid "Room"
 msgstr "Raum"
 
-msgid "Main"
-msgstr "Standard"
-
 msgid "Leave room"
 msgstr "Raum verlassen"
+
+msgid "Main"
+msgstr "Standard"
 
 msgid "Current room"
 msgstr "Raum"
@@ -245,6 +242,45 @@ msgstr "Optionen für Bildschirmfreigabe"
 
 msgid "Fit screen."
 msgstr "Bildschirm einpassen."
+
+msgid "Share screen"
+msgstr "Bildschirm teilen"
+
+msgid "Please select what to share."
+msgstr "Bitte wählen Sie aus, was geteilt werden soll."
+
+msgid "Screen"
+msgstr "Bildschirm"
+
+msgid "Window"
+msgstr "Fenster"
+
+msgid "Application"
+msgstr "Anwendung"
+
+msgid "Share the whole screen. Click share to select the screen."
+msgstr ""
+"Gesamten Bildschirm teilen. Klicken Sie auf Teilen um den Bildschirm "
+"auszuwählen."
+
+msgid "Share a single window. Click share to select the window."
+msgstr ""
+"Einzelnes Fenster teilen. Klicken Sie auf Teilen um das Fenster "
+"auszuwählen."
+
+msgid ""
+"Share all windows of a application. This can leak content behind windows "
+"when windows get moved. Click share to select the application."
+msgstr ""
+"Alle Fenster einer Anwendung teilen. Es wird u.U. Inhalt hinter Fenstern "
+"der Anwendung geteilt, wenn diese verschoben werden. Klicken Sie auf "
+"Teilen um die Anwendung auszuwählen."
+
+msgid "Share"
+msgstr "Teilen"
+
+msgid "OK"
+msgstr "OK"
 
 msgid "Profile"
 msgstr "Profil"
@@ -330,7 +366,10 @@ msgid "Default room"
 msgstr "Standard Raum"
 
 msgid "Set alternative room to join at start."
-msgstr " Raum wird beim Start automatisch betreten."
+msgstr "Raum wird beim Start automatisch betreten."
+
+msgid "Notifications"
+msgstr "Benachrichtigungen"
 
 msgid "Desktop notification"
 msgstr "Desktop-Benachrichtigung"
@@ -344,11 +383,17 @@ msgstr "Verweigert - prüfen Sie die Browser-Einstellungen"
 msgid "Allowed"
 msgstr "Aktiviert"
 
+msgid "Sounds for incoming messages"
+msgstr "Töne bei eingehenden Nachrichten"
+
+msgid "Ring on incoming calls"
+msgstr "Klingeln bei eingehenden Anrufen"
+
+msgid "Sounds for users in current room"
+msgstr "Töne für Nutzer im aktuellen Raum"
+
 msgid "Advanced settings"
 msgstr "Erweiterte Einstellungen"
-
-msgid "Stereo audio"
-msgstr "Stereo-Audio"
 
 msgid "Play audio on same device as selected microphone"
 msgstr "Audioausgabe auf dem zum Mikrofon gehörenden Gerät"
@@ -368,14 +413,30 @@ msgstr "Max. Bildwiederholrate"
 msgid "auto"
 msgstr "auto"
 
+msgid "Send stereo audio"
+msgstr "Audio in Stereo übertragen"
+
+msgid ""
+"Sending stereo audio disables echo cancellation. Enable only if you have "
+"stereo input."
+msgstr ""
+"Um Stereo zu übertragen wird die Echo-Unterdrückung deaktiviert. Nur "
+"aktivieren wenn das Eingangssignal Stereo ist."
+
+msgid "Detect CPU over use"
+msgstr "CPU-Überlast erkennen"
+
+msgid "Automatically reduces video quality as needed."
+msgstr "Reduziert die Videoqualität wenn nötig."
+
 msgid "Optimize for high resolution video"
 msgstr "Für hohe Auflösung optimieren"
 
 msgid "Reduce video noise"
 msgstr "Rauschen reduzieren"
 
-msgid "Detect CPU over use"
-msgstr "CPU-Überlast erkennen"
+msgid "Prefer VP9 video codec"
+msgstr "VP9 Videocodec bevorzugen"
 
 msgid "Enable experiments"
 msgstr "Experimente aktivieren"
@@ -456,6 +517,9 @@ msgstr "Anruf annehmen"
 msgid "Waiting for camera/microphone access"
 msgstr "Warte auf Kamera/Mikrofon Freigabe"
 
+msgid "Your audio level"
+msgstr "Ihr Audio-Pegel"
+
 msgid "Checking camera and microphone access."
 msgstr "Prüfe Zugriff auf Kamera und Mikrofon."
 
@@ -500,14 +564,14 @@ msgstr ""
 msgid "Room history"
 msgstr "Raum-Verlauf"
 
-msgid "Videos are shared with everyone in this call."
+msgid "Please sign in."
+msgstr "Bitte melden Sie sich an."
+
+msgid "Videos play simultaneously for everyone in this call."
 msgstr "Das Video wird bei allen Gesprächsteilnehmern angezeigt."
 
 msgid "YouTube URL"
 msgstr "YouTube URL"
-
-msgid "Share"
-msgstr "Teilen"
 
 msgid ""
 "Could not load YouTube player API, please check your network / firewall "
@@ -570,6 +634,9 @@ msgstr "Ihre Kontaktanfrage wurde abgelehnt."
 msgid "Edit Contact"
 msgstr "Kontakt bearbeiten"
 
+msgid "Your browser does not support WebRTC. No calls possible."
+msgstr "Ihr Browser unterstützt kein WebRTC. Keine Anrufe möglich."
+
 msgid "Close this window and disconnect?"
 msgstr "Fenster schließen und die Verbindung trennen?"
 
@@ -578,7 +645,7 @@ msgstr "Kontakte"
 
 msgid "Restart required to apply updates. Click ok to restart now."
 msgstr ""
-"Es stehen Updates zur Verfügung. Klicken Sie Ok um die Anwendung  neu zu "
+"Es stehen Updates zur Verfügung. Klicken Sie Ok um die Anwendung neu zu "
 "starten."
 
 msgid "Failed to access camera/microphone."
@@ -618,9 +685,6 @@ msgid "Your browser is not supported. Please upgrade to a current version."
 msgstr ""
 "Ihr Browser wird nicht unterstützt. Bitte aktualisieren Sie auf eine "
 "aktuelle Version."
-
-msgid "Your browser does not support WebRTC. No calls possible."
-msgstr "Ihr Browser unterstützt kein WebRTC. Keine Anrufe möglich."
 
 msgid "Chat with"
 msgstr "Chat mit"
@@ -697,6 +761,48 @@ msgstr "Meeting:"
 
 msgid "Room name"
 msgstr "Raum-Name"
+
+msgid ""
+"The request contains an invalid parameter value. Please check the URL of "
+"the video you want to share and try again."
+msgstr ""
+"Die Anfrage enthält falsche Parameter. Bitte prüfen Sie die URL des "
+"Videos."
+
+msgid ""
+"The requested content cannot be played in an HTML5 player or another "
+"error related to the HTML5 player has occurred. Please try again later."
+msgstr ""
+"Dieser Inhalt kann nicht im HTML5-Player abgespielt werden oder ein "
+"anderer HTML5-Player-Fehler ist aufgetreten. Bitte versuchen Sie es "
+"später wieder."
+
+msgid ""
+"The video requested was not found. Please check the URL of the video you "
+"want to share and try again."
+msgstr "Das Video wurde nicht gefunden. Bitte prüfen Sie die URL des Videos."
+
+msgid ""
+"The owner of the requested video does not allow it to be played in "
+"embedded players."
+msgstr ""
+"Der Eigentümer des Videos hat das Video nicht für eingebettete Anzeige "
+"freigegeben."
+
+#, python-format
+msgid ""
+"An unknown error occurred while playing back the video (%s). Please try "
+"again later."
+msgstr ""
+"Beim Abspielen des Videos ist ein unbekannter Fehler aufgetreten (%s). "
+"Bitte versuchen Sie es später wieder."
+
+msgid ""
+"An unknown error occurred while playing back the video. Please try again "
+"later."
+msgstr ""
+"Beim Abspielen des Videos ist ein unbekannter Fehler aufgetreten. Bitte "
+"versuchen Sie es später wieder."
 
 msgid "Unknown URL format. Please make sure to enter a valid YouTube URL."
 msgstr "Unbekanntes URL-Format. Bitte geben Sie eine gültige YouTube URL ein."

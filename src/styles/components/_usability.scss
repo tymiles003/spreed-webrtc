@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -19,7 +19,24 @@
  *
  */
 
-#help {
+
+.withChat,
+.withBuddylist {
+  // scss-lint:disable IdSelector
+  #help {
+    right: 260px;
+  }
+}
+
+.withChat.withBuddylist,
+.withSettings {
+  // scss-lint:disable IdSelector
+  #help {
+    right: 520px;
+  }
+}
+
+#help { // scss-lint:disable IdSelector
   bottom: 10px;
   color: #aaa;
   font-size: 1.1em;
@@ -27,38 +44,32 @@
   margin: 0 auto;
   position: absolute;
   right: 0;
-  text-shadow: 0 0 5px black;
-  transition: right 200ms ease-in-out;
+  text-shadow: 0 0 5px #000;
   top: 80px;
+  transition: right 200ms ease-in-out;
   user-select: none;
   width: 350px;
 }
 
-.withChat #help,
-.withBuddylist #help {
-  right: 260px;
-}
+.help {
+  @include breakpt($breakpoint-useability-small, max-width, only screen) {
+    display: none;
+  }
 
-.withChat.withBuddylist #help,
-.withSettings #help {
-  right: 520px;
-}
+  @include breakpt($breakpoint-useability-small, min-width, only screen, $breakpoint-useability-large) {
+    font-size: 1em;
+    width: 250px;
+  }
 
-#help {
   > div {
     margin: 0 10px;
   }
+
   .help-subline {
     color: #888;
     padding: 20px 0;
   }
-  @include breakpt($breakpoint-useability-small, max-width, only screen){
-    display: none;
-  }
-  @include breakpt($breakpoint-useability-small, min-width, only screen, $breakpoint-useability-large){
-    font-size: 1em;
-    width: 250px;
-  }
+
   .btn {
     text-shadow: none;
   }

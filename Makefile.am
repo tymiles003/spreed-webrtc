@@ -21,20 +21,23 @@
 AUTOMAKE_OPTIONS = -Wno-portability
 ACLOCAL_AMFLAGS = -I m4
 
+unexport GOBIN
+
 EXENAME := spreed-webrtc-server
+GOPKG := github.com/strukturag/spreed-webrtc
+GOPATH := "$(CURDIR)/vendor:$(CURDIR)"
 
 CONFIG_FILE ?= spreed-webrtc-server.conf
 CONFIG_PATH ?= /etc
 GOBUILDFLAGS ?=
 GOTESTFLAGS ?=
-DESTDIR ?= /
+SYSTEM_GOPATH = /usr/share/gocode/src/
+
+BIN ?= @prefix@/sbin
+SHARE ?= @prefix@/share/spreed-webrtc-server
 
 OUTPUT := $(CURDIR)/bin
 OUTPUT_JS := $(CURDIR)/build/out
-
-BIN := $(DESTDIR)@prefix@/sbin
-CONFIG_DIR := $(DESTDIR)@prefix@$(CONFIG_PATH)
-SHARE := $(DESTDIR)@prefix@/share/spreed-webrtc-server
 
 BUILD_ARCH := $(shell $(GO) env GOARCH)
 BUILD_OS := $(shell go env GOOS)
@@ -44,25 +47,34 @@ DIST_BIN := $(DIST)/bin
 
 all: build
 
-build: binary assets
+build: 
+	$(MAKE) get
+	$(MAKE) binary
+	$(MAKE) assets
 
 gopath:
 	@echo GOPATH=$(GOPATH)
 
-if READONLY_VENDOR_GOPATH
-export GOPATH = $(DIST):$(CURDIR)
-get: $(DIST)
-	ln -sf $(VENDOR_GOPATH)/src -t $(DIST)
-else
-export GOPATH = $(VENDOR_GOPATH):$(CURDIR)
-get:
-endif
-	$(GO) get app/...
+goget:
+	if [ -z "$(DEB_BUILDING)" ]; then GOPATH=$(GOPATH) go get github.com/rogpeppe/godeps; fi
+	if [ -z "$(DEB_BUILDING)" ]; then GOPATH=$(GOPATH) $(CURDIR)/vendor/bin/godeps -u dependencies.tsv; fi
+	mkdir -p $(shell dirname "$(CURDIR)/vendor/src/$(GOPKG)")
+	rm -f $(CURDIR)/vendor/src/$(GOPKG)
+	ln -sfn $(PWD) $(CURDIR)/vendor/src/$(GOPKG)
 
-getupdate: vendorclean get
+get: goget
 
-binary: get
-	$(GO) build $(GOBUILDFLAGS) -o bin/$(EXENAME) -ldflags '$(LDFLAGS)' app/$(EXENAME)
+gogetupdate: govendorclean goget
+
+dependencies.tsv:
+	set -e ;\
+	TMP=$$(mktemp -d) ;\
+	cp -r $(CURDIR)/vendor $$TMP ;\
+	GOPATH=$$TMP/vendor:$(CURDIR) $(CURDIR)/vendor/bin/godeps $(GOPKG)/src/app/spreed-webrtc-server ./go/... > $(CURDIR)/dependencies.tsv ;\
+	rm -rf $$TMP
+
+binary:
+	GOPATH=$(GOPATH) $(GO) build $(GOBUILDFLAGS) -o bin/$(EXENAME) -ldflags '$(INTERNALLDFLAGS)' app/$(EXENAME)
 
 binaryrace: GOBUILDFLAGS := $(GOBUILDFLAGS) -race
 binaryrace: binary
@@ -70,16 +82,23 @@ binaryrace: binary
 binaryall: GOBUILDFLAGS := $(GOBUILDFLAGS) -a
 binaryall: binary
 
-fmt:
-	$(GO) fmt app/...
+gofmt:
+	GOPATH=$(GOPATH) $(GO) fmt app/... ./go/...
 
-test: get
-	$(GO) test $(GOTESTFLAGS) app/...
+fmt: gofmt
+
+test:
+	GOPATH=$(GOPATH) $(GO) test -v $(GOTESTFLAGS) app/... ./go/...
+
+dist_gopath: $(DIST_SRC)
+	[ -d $(SYSTEM_GOPATH) ] && \
+		find $(SYSTEM_GOPATH) -mindepth 1 -maxdepth 1 -type d \
+			-exec ln -sf {} $(DIST_SRC) \; || true
 
 assets: javascript fonts
 
-releaseassets: RJSFLAGS = generateSourceMaps=false preserveLicenseComments=true
-releaseassets: assets
+release-assets: RJSFLAGS = generateSourceMaps=false preserveLicenseComments=true
+release-assets: assets
 
 fonts:
 	$(MKDIR_P) $(CURDIR)/static/fonts
@@ -96,6 +115,9 @@ styles: fonts
 
 styleshint:
 	cd $(CURDIR)/src/styles && $(MAKE) styleshint
+
+styleslint:
+	cd $(CURDIR)/src/styles && $(MAKE) styleslint
 
 jshint:
 	@if [ "$(JSHINT)" = "" ]; then echo "Command 'jshint' not found"; exit 1; fi
@@ -114,34 +136,48 @@ extract-i18n:
 update-i18n:
 	cd $(CURDIR)/src/i18n && $(MAKE) update
 
-release: LDFLAGS = -X main.version $(PACKAGE_VERSION) -X main.defaultConfig $(CONFIG_PATH)/$(CONFIG_FILE)
-release: OUTPUT = $(DIST_BIN)
-release: $(DIST_BIN) binary releaseassets
+release-binary: GOPATH = "$(DIST):$(CURDIR)/vendor:$(CURDIR)"
+if GO_14
+release-binary: INTERNALLDFLAGS = -X main.version $(PACKAGE_VERSION) -X main.defaultConfig $(CONFIG_PATH)/$(CONFIG_FILE)
+else
+release-binary: INTERNALLDFLAGS = -X main.version=$(PACKAGE_VERSION) -X main.defaultConfig=$(CONFIG_PATH)/$(CONFIG_FILE)
+endif
+release-binary: OUTPUT = $(DIST_BIN)
+release-binary: dist_gopath $(DIST_BIN) binary
 
-install:
-	echo $(BIN)
-	echo $(SHARE)
-	$(INSTALL) -d $(BIN) $(CONFIG_DIR)
-	$(INSTALL) -d $(SHARE)/www/html
-	$(INSTALL) -d $(SHARE)/www/static
-	$(INSTALL) -d $(SHARE)/www/static/img
-	$(INSTALL) -d $(SHARE)/www/static/sounds
-	$(INSTALL) -d $(SHARE)/www/static/fonts
-	$(INSTALL) -d $(SHARE)/www/static/translation
-	$(INSTALL) -d $(SHARE)/www/static/css
-	$(INSTALL) -d $(SHARE)/www/static/js/libs/pdf
-	$(INSTALL) bin/$(EXENAME) $(BIN)
-	$(INSTALL) -m 644 server.conf.in $(CONFIG_DIR)/$(CONFIG_FILE)
-	$(INSTALL) html/* $(SHARE)/www/html
-	$(INSTALL) static/img/* $(SHARE)/www/static/img
-	$(INSTALL) static/sounds/* $(SHARE)/www/static/sounds
-	$(INSTALL) static/fonts/* $(SHARE)/www/static/fonts
-	$(INSTALL) static/translation/* $(SHARE)/www/static/translation
-	$(INSTALL) static/css/* $(SHARE)/www/static/css
-	$(INSTALL) -D static/js/libs/require/require.js $(SHARE)/www/static/js/libs/require/require.js
-	$(INSTALL) $(OUTPUT_JS)/*.js $(SHARE)/www/static/js
-	$(INSTALL) $(OUTPUT_JS)/libs/pdf/*.js $(SHARE)/www/static/js/libs/pdf
-	$(INSTALL) -D static/js/libs/webodf.js $(SHARE)/www/static/js/libs/webodf.js
+release: release-binary release-assets
+
+install-binary:
+	@echo "Installing binaries to: $(DESTDIR)$(BIN)"
+	$(INSTALL) -d $(DESTDIR)$(BIN)
+	$(INSTALL) bin/$(EXENAME) $(DESTDIR)$(BIN)
+
+install-assets:
+	@echo "Installing static resources to: $(DESTDIR)$(SHARE)"
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/html
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/html/sandboxes
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/img
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/sounds
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/fonts
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/translation
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/css
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/js/libs/pdf
+	$(INSTALL) -d $(DESTDIR)$(SHARE)/www/static/js/sandboxes
+	$(INSTALL) html/*.html $(DESTDIR)$(SHARE)/www/html
+	$(INSTALL) html/sandboxes/*.html $(DESTDIR)$(SHARE)/www/html/sandboxes
+	$(INSTALL) static/img/* $(DESTDIR)$(SHARE)/www/static/img
+	$(INSTALL) static/sounds/* $(DESTDIR)$(SHARE)/www/static/sounds
+	$(INSTALL) static/fonts/* $(DESTDIR)$(SHARE)/www/static/fonts
+	$(INSTALL) static/translation/* $(DESTDIR)$(SHARE)/www/static/translation
+	$(INSTALL) static/css/* $(DESTDIR)$(SHARE)/www/static/css
+	$(INSTALL) -D static/js/libs/require/require.js $(DESTDIR)$(SHARE)/www/static/js/libs/require/require.js
+	$(INSTALL) $(OUTPUT_JS)/*.js $(DESTDIR)$(SHARE)/www/static/js
+	$(INSTALL) $(OUTPUT_JS)/libs/pdf/*.js $(DESTDIR)$(SHARE)/www/static/js/libs/pdf
+	$(INSTALL) -D static/js/libs/webodf.js $(DESTDIR)$(SHARE)/www/static/js/libs/webodf.js
+	$(INSTALL) $(OUTPUT_JS)/sandboxes/*.js $(DESTDIR)$(SHARE)/www/static/js/sandboxes
+
+install: install-binary install-assets
 
 clean:
 	$(GO) clean -i -r app/... 2>/dev/null || true
@@ -152,13 +188,13 @@ clean:
 distclean: clean
 	rm -rf $(DIST)
 
-vendorclean:
+govendorclean:
 	rm -rf vendor/*
 
-pristine: distclean vendorclean
+pristine: distclean govendorclean
 	rm -f server.conf
 
-$(DIST):
+$(DIST_SRC):
 	$(MKDIR_P) $@
 
 $(DIST_BIN):
@@ -166,11 +202,11 @@ $(DIST_BIN):
 
 tarball: TARPATH = $(DIST)/$(PACKAGE_NAME)-$(PACKAGE_VERSION)
 tarball: BIN = $(TARPATH)/loader
-tarball: CONFIG_DIR = $(TARPATH)/loader
-tarball: DOCS = $(CONFIG_DIR)/docs
+tarball: DOCS = $(TARPATH)/loader/docs
 tarball: SHARE = $(TARPATH)/
 tarball: distclean release install
 		echo -n $(PACKAGE_VERSION) > $(TARPATH)/version.txt
+		cp server.conf.in $(TARPATH)/loader
 		tar czf $(DIST)/$(PACKAGE_NAME)-$(PACKAGE_VERSION)_$(BUILD_OS)_$(BUILD_ARCH).tar.gz -C $(DIST) $(PACKAGE_NAME)-$(PACKAGE_VERSION)
 
-.PHONY: clean distclean vendorclean pristine get getupdate build javascript fonts styles release releasetest dist_gopath install gopath binary binaryrace binaryall tarball assets
+.PHONY: clean distclean govendorclean pristine goget gogetupdate build javascript fonts styles release release-binary dist_gopath install install-binary install-assets gopath binary binaryrace binaryall tarball assets dependencies.tsv

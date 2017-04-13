@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -33,11 +33,16 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 		this.pc = null;
 		this.datachannel = null;
 		this.datachannelReady = false;
+		this.readyForRenegotiation = true;
 
 		if (currentcall) {
 			this.createPeerConnection(currentcall);
 		}
 
+	};
+
+	PeerConnection.prototype.setReadyForRenegotiation = function(ready) {
+		this.readyForRenegotiation = !!ready;
 	};
 
 	PeerConnection.prototype.createPeerConnection = function(currentcall) {
@@ -72,10 +77,17 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 			// for example https://bugzilla.mozilla.org/show_bug.cgi?id=998546.
 			pc.onaddstream = _.bind(this.onRemoteStreamAdded, this);
 			pc.onremovestream = _.bind(this.onRemoteStreamRemoved, this);
+			// NOTE(longsleep): Firefox 38 has support for onaddtrack. Unfortunately Chrome does
+			// not support this and thus both are not compatible. For the time being this means
+			// that renegotiation does not work between Firefox and Chrome. Even worse, current
+			// spec says that the event should really be named ontrack.
 			if (window.webrtcDetectedBrowser === "firefox") {
-				// NOTE(longsleep): onnegotiationneeded is not supported by Firefox. We trigger it
+				// NOTE(longsleep): onnegotiationneeded is not supported by Firefox < 38.
+				// Also firefox does not care about streams, but has the newer API for tracks
+				// implemented. This does not work together with Chrome, so we trigger negotiation
 				// manually when a stream is added or removed.
-				// https://bugzilla.mozilla.org/show_bug.cgi?id=840728
+				// https://bugzilla.mozilla.org/show_bug.cgi?id=1017888
+				// https://bugzilla.mozilla.org/show_bug.cgi?id=1149838
 				this.negotiationNeeded = _.bind(function() {
 					if (this.currentcall.initiate) {
 						// Trigger onNegotiationNeeded once for Firefox.
@@ -87,9 +99,7 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 				pc.onnegotiationneeded = _.bind(this.onNegotiationNeeded, this);
 			}
 			pc.ondatachannel = _.bind(this.onDatachannel, this);
-			pc.onsignalingstatechange = function(event) {
-				console.debug("Signaling state changed", pc.signalingState);
-			};
+			pc.onsignalingstatechange = _.bind(this.onSignalingStateChange, this);
 			// NOTE(longsleep):
 			// Support old callback too (https://groups.google.com/forum/?fromgroups=#!topic/discuss-webrtc/glukq0OWwVM)
 			// Chrome < 27 and Firefox < 24 need this.
@@ -215,10 +225,18 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 
 	};
 
+	PeerConnection.prototype.onSignalingStateChange = function(event) {
+
+		var signalingState = event.target.signalingState;
+		console.debug("Connection signaling state change", signalingState, this.currentcall.id);
+		this.currentcall.onSignalingStateChange(signalingState);
+
+	};
+
 	PeerConnection.prototype.onIceConnectionStateChange = function(event) {
 
 		var iceConnectionState = event.target.iceConnectionState;
-		console.info("ICE connection state change", iceConnectionState, event, this.currentcall);
+		console.debug("ICE connection state change", iceConnectionState, this.currentcall.id);
 		this.currentcall.onIceConnectionStateChange(iceConnectionState);
 
 	};
@@ -262,6 +280,16 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 
 	};
 
+	PeerConnection.prototype.hasRemoteDescription = function() {
+
+		// NOTE(longsleep): Chrome seems to return empty sdp even if no remoteDescription was set.
+		if (!this.pc || !this.pc.remoteDescription || !this.pc.remoteDescription.sdp) {
+			return false
+		}
+		return true;
+
+	};
+
 	PeerConnection.prototype.setRemoteDescription = function() {
 
 		return this.pc.setRemoteDescription.apply(this.pc, arguments);
@@ -295,7 +323,6 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 	};
 
 	PeerConnection.prototype.createAnswer = function() {
-
 		return this.pc.createAnswer.apply(this.pc, arguments);
 
 	};
@@ -308,12 +335,18 @@ define(['jquery', 'underscore', 'webrtc.adapter'], function($, _) {
 
 	PeerConnection.prototype.getRemoteStreams = function() {
 
+		if (!this.pc) {
+			return [];
+		}
 		return this.pc.getRemoteStreams.apply(this.pc, arguments);
 
 	};
 
 	PeerConnection.prototype.getLocalStreams = function() {
 
+		if (!this.pc) {
+			return [];
+		}
 		return this.pc.getRemoteStreams.apply(this.pc, arguments);
 
 	};

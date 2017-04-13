@@ -1,3 +1,14 @@
+<div>
+  <nav class="navbar navbar-default navbar-static-top">
+    <div class="container-fluid">
+      <div>
+        <a class="navbar-brand">{{_('Settings')}}</a>
+      </div>
+      <div class="navbar-right">
+          <button ng-click="layout.settings=false" type="button" class="btn btn-primary navbar-btn">{{_('OK')}}</button>
+      </div>
+    </div>
+  </nav>
 <div class="settings nicescroll">
   <div class="version">{{version}}</div>
   <div ng-form="settingsform" class="form-horizontal" on-enter="saveSettings(user)" on-escape="cancelSettings()"
@@ -24,7 +35,8 @@
           </div>
         </div>
         <div class="form-group profile-publicnotice">
-          <div class="col-xs-8 col-xs-offset-4">
+          <label class="col-xs-4 control-label"></label>
+          <div class="col-xs-8">
             <p class="help-block">{{_('Your picture, name and status message identify yourself in calls, chats and rooms.')}}</p>
           </div>
         </div>
@@ -32,26 +44,19 @@
           <div class="form-group profile-yourid">
             <label class="col-xs-4 control-label">{{_('Your ID')}}</label>
             <div ng-switch="withUsersMode">
-              <form ng-switch-when="certificate" class="col-xs-8" target="users_registration_certificate_iframe">
-                <div ng-if="!userid">
-                  <keygen class="hidden" name="pubkey"/>
-                  <label ng-if="!userid && withUsersRegistration && usersettings.registerUserid">
-                    <button class="btn btn-small btn-primary" ng-click="usersettings.registerUserid($event)">{{_('Register')}}</button>
-                  </label>
-                  <iframe class="hidden" name="users_registration_certificate_iframe"></iframe>
-                </div>
+              <div ng-switch-when="certificate" class="col-xs-8">
                 <div ng-if="userid">
                   <p class="form-control-static well well-sm">{{userid|displayUserid}}</p>
                   <p class-"help-block">{{_('Authenticated by certificate. To log out you have to remove your certificate from the browser.')}}</p>
                 </div>
-              </form>
+              </div>
               <div ng-switch-default class="col-xs-8">
                 <div ng-if="!userid && withUsersRegistration">
                   <label ng-if="usersettings.loginUserid">
                     <button class="btn btn-small btn-primary btn-sign-in" ng-click="usersettings.loginUserid()">{{_('Sign in')}}</button>
                   </label>
                   <label ng-if="usersettings.registerUserid">
-                    <button class="btn btn-small btn-link btn-create-account" ng-click="usersettings.registerUserid($event)">{{_('Create an account')}}</button>
+                    <button class="btn btn-small btn-info btn-create-account" ng-click="usersettings.registerUserid($event)">{{_('Create an account')}}</button>
                   </label>
                 </div>
                 <p class="form-control-static well well-sm" ng-if="userid">{{userid|displayUserid}}</p>
@@ -59,14 +64,14 @@
                   <button class="btn btn-small btn-default btn-sign-out" ng-click="usersettings.forgetUserid()">{{_('Sign out')}}</button>
                 </label>
                 <label ng-if="userid && usersettings.accountUserid">
-                  <button class="btn btn-small btn-link btn-manage-account" ng-click="usersettings.accountUserid()">{{_('Manage account')}}</button>
+                  <button class="btn btn-small btn-info btn-manage-account" ng-click="usersettings.accountUserid()">{{_('Manage account')}}</button>
                 </label>
               </div>
             </div>
           </div>
         </div>
       </settings-account>
-      <settings-media ng-show="mediaSources.supported || isChrome">
+      <settings-media ng-show="mediaSources.supported || supported.constraints.audioVideo">
         <legend>{{_('Media')}}</legend>
         <div ng-show="mediaSources.supported">
           <div class="form-group">
@@ -82,14 +87,14 @@
             </div>
           </div>
         </div>
-        <div ng-show="isChrome" class="form-group">
+        <div ng-show="supported.constraints.audioVideo" class="form-group">
           <label class="col-xs-4 control-label">{{_('Video quality')}}</label>
           <div class="col-xs-8">
             <div class="btn-group">
               <button type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'low'">{{_('Low')}}</button>
               <button type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'high'">{{_('High')}}</button>
-              <button type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'hd'">{{_('HD')}}</button>
-              <button type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'fullhd'">{{_('Full HD')}}</button>
+              <button ng-if="supported.constraints.hdVideo" type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'hd'">{{_('HD')}}</button>
+              <button ng-if="supported.constraints.hdVideo" type="button" class="btn btn-default" ng-model="user.settings.videoQuality" btn-radio="'fullhd'">{{_('Full HD')}}</button>
             </div>
           </div>
         </div>
@@ -110,6 +115,7 @@
             <span class="help-block">{{_('Set alternative room to join at start.')}}</span>
           </div>
         </div>
+        <legend>{{_('Notifications')}}</legend>
         <div class="form-group" ng-show="desktopNotify.supported">
           <label class="col-xs-4 control-label">{{_('Desktop notification')}}</label>
           <div class="col-xs-8">
@@ -118,6 +124,24 @@
               <p class="form-control-static text-error" ng-switch-when="denied"><i class="fa fa-exclamation-triangle"></i>{{_('Denied - check your browser settings')}}</p>
               <p class="form-control-static text-success" ng-switch-when="granted"><i class="fa fa-ok"></i>{{_('Allowed')}}</p>
             </span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-xs-4 control-label"><input type="checkbox" ng-model="user.settings.sound.incomingMessages"/></label>
+          <div class="col-xs-8">
+            <div class="form-control-static">{{_('Sounds for incoming messages')}}</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-xs-4 control-label"><input type="checkbox" ng-model="user.settings.sound.incomingCall"/></label>
+          <div class="col-xs-8">
+            <div class="form-control-static">{{_('Ring on incoming calls')}}</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="col-xs-4 control-label"><input type="checkbox" ng-model="user.settings.sound.roomJoinLeave"/></label>
+          <div class="col-xs-8">
+            <div class="form-control-static">{{_('Sounds for users in current room')}}</div>
           </div>
         </div>
       </settings-settings>
@@ -130,18 +154,7 @@
 
         <div>
 
-          <div class="form-group">
-            <label class="col-xs-4 control-label">{{_('Stereo audio')}}</label>
-            <div class="col-xs-8">
-              <div class="checkbox">
-               <label>
-                  <input type="checkbox" ng-model="user.settings.stereo"/>&nbsp;
-               </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group" ng-show="isChrome && supported.renderToAssociatedSink">
+          <div class="form-group" ng-show="supported.constraints.renderToAssociatedSink">
             <label class="col-xs-4 control-label">{{_('Play audio on same device as selected microphone')}}</label>
             <div class="col-xs-8">
               <div class="checkbox">
@@ -154,7 +167,7 @@
 
           <div ng-show="user.settings.experimental.enabled">
 
-            <div class="form-group" ng-show="isChrome">
+            <div class="form-group" ng-show="supported.constraints.chrome">
               <label class="col-xs-4 control-label">{{_('Experimental AEC')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
@@ -165,7 +178,7 @@
               </div>
             </div>
 
-            <div class="form-group" ng-show="isChrome">
+            <div class="form-group" ng-show="supported.constraints.chrome">
               <label class="col-xs-4 control-label">{{_('Experimental AGC')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
@@ -176,7 +189,7 @@
               </div>
             </div>
 
-            <div class="form-group" ng-show="isChrome">
+            <div class="form-group" ng-show="supported.constraints.chrome">
               <label class="col-xs-4 control-label">{{_('Experimental noise suppression')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
@@ -189,7 +202,7 @@
 
           </div>
 
-          <div class="form-group" ng-show="isChrome">
+          <div class="form-group" ng-show="supported.constraints.audioVideo">
             <label class="col-xs-4 control-label">{{_('Max video frame rate')}}</label>
             <div class="col-xs-8">
               <div class="btn-group">
@@ -202,9 +215,33 @@
             </div>
           </div>
 
+          <div class="form-group" ng-show="supported.constraints.chrome">
+            <label class="col-xs-4 control-label">{{_('Send stereo audio')}}</label>
+            <div class="col-xs-8">
+              <div class="checkbox">
+               <label>
+                  <input type="checkbox" ng-model="user.settings.sendStereo"/>&nbsp;
+               </label>
+              </div>
+              <span class="help-block">{{_('Sending stereo audio disables echo cancellation. Enable only if you have stereo input.')}}</span>
+            </div>
+          </div>
+
+          <div class="form-group" ng-show="supported.constraints.chrome">
+            <label class="col-xs-4 control-label">{{_('Detect CPU over use')}}</label>
+            <div class="col-xs-8">
+              <div class="checkbox">
+               <label>
+                  <input type="checkbox" ng-model="user.settings.videoCpuOveruseDetection"/>&nbsp;
+               </label>
+               <span class="help-block">{{_('Automatically reduces video quality as needed.')}}</span>
+              </div>
+            </div>
+          </div>
+
           <div ng-show="user.settings.experimental.enabled">
 
-            <div class="form-group" ng-show="isChrome">
+            <div class="form-group" ng-show="supported.constraints.chrome">
               <label class="col-xs-4 control-label">{{_('Optimize for high resolution video')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
@@ -215,7 +252,7 @@
               </div>
             </div>
 
-            <div class="form-group" ng-show="isChrome">
+            <div class="form-group" ng-show="supported.constraints.chrome">
               <label class="col-xs-4 control-label">{{_('Reduce video noise')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
@@ -226,12 +263,12 @@
               </div>
             </div>
 
-            <div class="form-group" ng-show="isChrome">
-              <label class="col-xs-4 control-label">{{_('Detect CPU over use')}}</label>
+            <div class="form-group" ng-show="supported.constraints.vp9">
+              <label class="col-xs-4 control-label">{{_('Prefer VP9 video codec')}}</label>
               <div class="col-xs-8">
                 <div class="checkbox">
                  <label>
-                    <input type="checkbox" ng-model="user.settings.experimental.videoCpuOveruseDetection"/>&nbsp;
+                    <input type="checkbox" ng-model="user.settings.experimental.preferVideoSendCodecVP9"/>&nbsp;
                  </label>
                 </div>
               </div>
@@ -239,7 +276,7 @@
 
           </div>
 
-          <div class="form-group" ng-show="isChrome">
+          <div class="form-group" ng-show="supported.constraints.chrome">
             <label class="col-xs-4 control-label">{{_('Enable experiments')}}</label>
             <div class="col-xs-8">
               <div class="checkbox">
@@ -256,8 +293,10 @@
 
       </settings-advanced>
 
+      <hr/>
+
       <div class="form-group">
-         <div class="col-xs-4 control-label"></div>
+        <div class="col-xs-4 control-label"></div>
         <div class="col-xs-8">
           <a ng-click="showAdvancedSettings = !showAdvancedSettings"><span ng-show="showAdvancedSettings">{{_('Show advanced settings')}}</span><span ng-hide="showAdvancedSettings">{{_('Hide advanced settings')}}</span></a>
         </div>
@@ -275,12 +314,8 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <div class="col-xs-8 col-xs-offset-4">
-          <a ng-click="layout.settings=false" class="btn btn-default">{{_('Close')}}</a>
-        </div>
-      </div>
 
     </fieldset>
   </div>
+</div>
 </div>

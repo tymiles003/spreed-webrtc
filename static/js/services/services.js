@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -65,7 +65,13 @@ define([
 	'services/rooms',
 	'services/resturl',
 	'services/roompin',
-	'services/constraints'], function(_,
+	'services/constraints',
+	'services/modules',
+	'services/mediadevices',
+	'services/sandbox',
+	'services/dummystream',
+	'services/usermedia',
+	'services/playpromise'], function(_,
 desktopNotify,
 playSound,
 safeApply,
@@ -108,7 +114,13 @@ localStatus,
 rooms,
 restURL,
 roompin,
-constraints) {
+constraints,
+modules,
+mediaDevices,
+sandbox,
+dummyStream,
+userMedia,
+playPromise) {
 
 	var services = {
 		desktopNotify: desktopNotify,
@@ -153,7 +165,13 @@ constraints) {
 		rooms: rooms,
 		restURL: restURL,
 		roompin: roompin,
-		constraints: constraints
+		constraints: constraints,
+		modules: modules,
+		mediaDevices: mediaDevices,
+		sandbox: sandbox,
+		dummyStream: dummyStream,
+		userMedia: userMedia,
+		playPromise: playPromise
 	};
 
 	var initialize = function(angModule) {

@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -22,13 +22,17 @@
 "use strict";
 define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modernizr) {
 
-	var dynamicCSSContainer = "audiovideo-dynamic";
 	var renderers = {};
+	var defaultSize = {
+		width: 640,
+		height: 360
+	};
+	var defaultAspectRatio = defaultSize.width/defaultSize.height;
 
 	var getRemoteVideoSize = function(videos, streams) {
 		var size = {
-			width: 1920,
-			height: 1080
+			width: defaultSize.width,
+			height: defaultSize.height
 		}
 		if (videos.length) {
 			if (videos.length === 1) {
@@ -41,12 +45,28 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			}
 		}
 		return size;
-	}
+	};
+
+	var dynamicCSSContainer = "audiovideo-dynamic";
+	var injectCSS = function(css) {
+		$.injectCSS(css, {
+			containerName: dynamicCSSContainer,
+			truncateFirst: true,
+			useRawValues: true
+		});
+	};
 
 	var objectFitSupport = Modernizr["object-fit"] && true;
 
 	// videoLayout
-	return ["$window", function($window) {
+	return ["$window", "playPromise", function($window, playPromise) {
+
+		// Invisible layout (essentially shows nothing).
+		var Invisible = function(container, scope, controller) {};
+		Invisible.prototype.name = "invisible";
+		Invisible.prototype.render = function() {};
+		Invisible.prototype.close = function() {};
+
 
 		// Video layout with all videos rendered the same size.
 		var OnePeople = function(container, scope, controller) {};
@@ -73,7 +93,6 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 				if (scope.localVideo.style.opacity === '1') {
 					videoWidth = scope.localVideo.videoWidth;
 					videoHeight = scope.localVideo.videoHeight;
-					console.log("Local video size: ", videoWidth, videoHeight);
 					videos = [null];
 				}
 			}
@@ -83,80 +102,65 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			}
 
 			if (!videoWidth) {
-				videoWidth = 640;
+				videoWidth = defaultSize.width;
 			}
 			if (!videoHeight) {
-				videoHeight = 360;
+				videoHeight = defaultSize.height;
 			}
 
 			if (this.countSelfAsRemote) {
 				videos.unshift(null);
 			}
 
-			var aspectRatio = videoWidth / videoHeight;
 			var innerHeight = size.height;
 			var innerWidth = size.width;
+
+			// We use the same aspect ratio to make all videos look the same.
+			var aspectRatio = defaultAspectRatio;
 
 			//console.log("resize", innerHeight, innerWidth);
 			//console.log("resize", container, videos.length, aspectRatio, innerHeight, innerWidth);
 			var extraCSS = {};
 
-			if (!objectFitSupport) {
-				// Make mini video fit into available space on browsers with no object-fit support.
-				// http://caniuse.com/object-fit
-				var aspectRatioLocal = scope.localVideo.videoWidth / scope.localVideo.videoHeight;
-				extraCSS = {};
-				extraCSS[".renderer-"+this.name+" .miniVideo"] = {
-					width: ($(scope.mini).height() * aspectRatioLocal) + "px"
-				};
-			}
+			// Always set size of mini video.
+			extraCSS[".renderer-"+this.name+" .miniVideo"] = {
+				width: ($(scope.mini).height() * defaultAspectRatio) + "px"
+			};
 
-			if (videos.length === 1) {
-				var newVideoWidth = innerWidth < aspectRatio * innerHeight ? innerWidth : aspectRatio * innerHeight;
-				var newVideoHeight = innerHeight < innerWidth / aspectRatio ? innerHeight : innerWidth / aspectRatio;
-				container.style.width = newVideoWidth + 'px';
-				container.style.left = ((innerWidth - newVideoWidth) / 2) + 'px';
-			} else {
-				var space = innerHeight * innerWidth; // square pixels
-				var videoSpace = space / videos.length;
-				var singleVideoWidthOptimal = Math.pow(videoSpace * aspectRatio, 0.5);
-				var videosPerRow = Math.ceil(innerWidth / singleVideoWidthOptimal);
-				if (videosPerRow > videos.length) {
-					videosPerRow = videos.length;
-				}
-				var singleVideoWidth = Math.ceil(innerWidth / videosPerRow);
-				var singleVideoHeight = Math.ceil(singleVideoWidth / aspectRatio);
-				var newContainerWidth = (videosPerRow * singleVideoWidth);
-				var newContainerHeight = Math.ceil(videos.length / videosPerRow) * singleVideoHeight;
-				if (newContainerHeight > innerHeight) {
-					var tooHigh = (newContainerHeight - innerHeight) / Math.ceil(videos.length / videosPerRow);
-					singleVideoHeight -= tooHigh;
-					singleVideoWidth = singleVideoHeight * aspectRatio;
-				}
-				/*
-                console.log("space", space);
-                console.log("videospace", videoSpace);
-                console.log("singleVideoWidthOptimal", singleVideoWidthOptimal);
-                console.log("videosPerRow", videosPerRow);
-                console.log("singleVideoWidth", singleVideoWidth);
-                console.log("singleVideoHeight", singleVideoHeight);
-                */
-				container.style.width = newContainerWidth + "px";
-				container.style.left = ((innerWidth - newContainerWidth) / 2) + 'px';
-				var extraCSS2 = {};
-				extraCSS2[".renderer-"+this.name+" .remoteVideos"] = {
-					">div": {
-						width: singleVideoWidth + "px",
-						height: singleVideoHeight + "px"
-					}
-				};
-				extraCSS = $.extend(extraCSS, extraCSS2);
+			var space = innerHeight * innerWidth; // square pixels
+			var videoSpace = space / videos.length;
+			var singleVideoWidthOptimal = Math.pow(videoSpace * aspectRatio, 0.5);
+			var videosPerRow = Math.ceil(innerWidth / singleVideoWidthOptimal);
+			if (videosPerRow > videos.length) {
+				videosPerRow = videos.length;
 			}
-			$.injectCSS(extraCSS, {
-				truncateFirst: true,
-				containerName: dynamicCSSContainer,
-				useRawValues: true
-			});
+			var singleVideoWidth = Math.ceil(innerWidth / videosPerRow);
+			var singleVideoHeight = Math.ceil(singleVideoWidth / aspectRatio);
+			var newContainerWidth = (videosPerRow * singleVideoWidth);
+			var newContainerHeight = Math.ceil(videos.length / videosPerRow) * singleVideoHeight;
+			if (newContainerHeight > innerHeight) {
+				var tooHigh = (newContainerHeight - innerHeight) / Math.ceil(videos.length / videosPerRow);
+				singleVideoHeight -= tooHigh;
+				singleVideoWidth = singleVideoHeight * aspectRatio;
+			}
+			/*
+			console.log("space", space);
+			console.log("videospace", videoSpace);
+			console.log("singleVideoWidthOptimal", singleVideoWidthOptimal);
+			console.log("videosPerRow", videosPerRow);
+			console.log("singleVideoWidth", singleVideoWidth);
+			console.log("singleVideoHeight", singleVideoHeight);
+			*/
+			container.style.width = newContainerWidth + "px";
+			container.style.left = ((innerWidth - newContainerWidth) / 2) + 'px';
+			extraCSS[".renderer-"+this.name+" .remoteVideos"] = {
+				">div": {
+					width: singleVideoWidth + "px",
+					height: singleVideoHeight + "px"
+				}
+			};
+
+			injectCSS(extraCSS);
 
 		};
 
@@ -185,7 +189,7 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			var $mini = $(scope.mini);
 			this.miniParent = $mini.parent();
 			$mini.prependTo(scope.remoteVideos);
-			$mini.find("video")[0].play();
+			playPromise($mini.find("video")[0]);
 			this.countSelfAsRemote = true;
 		}
 		Democrazy.prototype = Object.create(OnePeople.prototype);
@@ -195,7 +199,7 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			OnePeople.prototype.close.call(this, container, scope, controller);
 			var $mini = $(scope.mini);
 			$mini.appendTo(this.miniParent);
-			$mini.find("video")[0].play();
+			playPromise($mini.find("video")[0]);
 			this.miniParent = null;
 		};
 
@@ -228,12 +232,12 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			if (this.big) {
 				// Add old video back.
 				this.big.insertAfter(remoteVideo);
-				this.big.find("video")[0].play();
+				playPromise(this.big.find("video")[0]);
 			}
 
 			this.big = remoteVideo;
 			remoteVideo.appendTo(this.bigVideo);
-			remoteVideo.find("video")[0].play();
+			playPromise(remoteVideo.find("video")[0]);
 
 		};
 
@@ -255,33 +259,32 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 
 			}
 
-			var remoteSize = getRemoteVideoSize(videos, streams);
-			var aspectRatio = remoteSize.width / remoteSize.height;
 			var innerHeight = size.height - 110;
 			var innerWidth = size.width;
 			var extraCSS = {};
 
+			// Use the same aspect ratio for all videos.
+			var aspectRatio = defaultAspectRatio;
 			var bigVideoWidth = innerWidth < aspectRatio * innerHeight ? innerWidth : aspectRatio * innerHeight;
 			var bigVideoHeight = innerHeight < innerWidth / aspectRatio ? innerHeight : innerWidth / aspectRatio;
 
-			this.bigVideo.style.width = bigVideoWidth + 'px';
-			this.bigVideo.style.height = bigVideoHeight + 'px';
-
 			// Make space for own video on the right if width goes low.
 			if (((size.width - (videos.length - 1) * 192) / 2) < 192) {
-				extraCSS = {};
 				extraCSS[".renderer-"+this.name+" .remoteVideos"] = {
 					"margin-right": "192px",
 					"overflow-x": "auto",
 					"overflow-y": "hidden"
 				};
 			}
+			// Big video size.
+			extraCSS[".renderer-"+this.name+" .bigVideo .remoteVideo"] = {
+				"height": bigVideoHeight + 'px',
+				"width": bigVideoWidth + 'px',
+				"margin": "auto",
+				"display": "block"
+			};
 
-			$.injectCSS(extraCSS, {
-				truncateFirst: true,
-				containerName: dynamicCSSContainer,
-				useRawValues: true
-			});
+			injectCSS(extraCSS);
 
 		};
 
@@ -289,7 +292,7 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 			this.closed = true;
 			if (this.big) {
 				this.remoteVideos.append(this.big);
-				this.big.find("video")[0].play();
+				playPromise(this.big.find("video")[0]);
 			}
 			this.big = null;
 			this.bigVideo.remove()
@@ -320,32 +323,39 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 					this.makeBig(streams[videos[0]].element);
 					this.bigVideo.style.opacity = 1;
 				}
-
 			}
+			var extraCSS = {};
+			// Always set size of mini video.
+			extraCSS[".renderer-"+this.name+" .miniVideo"] = {
+				width: ($(scope.mini).height() * defaultAspectRatio) + "px"
+			};
+			injectCSS(extraCSS);
 		};
 
 		// Register renderers.
+		renderers[Invisible.prototype.name] = Invisible;
 		renderers[OnePeople.prototype.name] = OnePeople;
 		renderers[Smally.prototype.name] = Smally;
 		renderers[Democrazy.prototype.name] = Democrazy;
 		renderers[ConferenceKiosk.prototype.name] = ConferenceKiosk;
 		renderers[Auditorium.prototype.name] = Auditorium;
 
+		// Helper for class name generation.
+		var makeName = function(prefix, n, camel) {
+			var r = prefix;
+			if (camel) {
+				r = r + n.charAt(0).toUpperCase() + n.slice(1);
+			} else {
+				r = r + "-" + n;
+			}
+			return r;
+		};
+
 		// Public api.
 		var current = null;
 		var body = $("body");
 		return {
 			update: function(name, size, scope, controller) {
-
-				var makeName = function(prefix, n, camel) {
-					var r = prefix;
-					if (camel) {
-						r = r + n.charAt(0).toUpperCase() + n.slice(1);
-					} else {
-						r = r + "-" + n;
-					}
-					return r;
-				};
 
 				var videos = _.keys(controller.streams);
 				var streams = controller.streams;
@@ -354,22 +364,20 @@ define(["jquery", "underscore", "modernizr", "injectCSS"], function($, _, Modern
 
 				if (!current) {
 					current = new renderers[name](container, scope, controller)
-					//console.log("Created new video layout renderer", name, current);
+					console.log("Created new video layout renderer", name, current);
 					$(layoutparent).addClass(makeName("renderer", name));
-					$(body).addClass(makeName("videolayout", name, true));
+					body.addClass(makeName("videolayout", name, true));
 					return true;
-				} else {
-					if (current.name !== name) {
-						current.close(container, scope, controller);
-						$(container).removeAttr("style");
-						$(layoutparent).removeClass(makeName("renderer", current.name));
-						$(body).removeClass(makeName("videolayout", current.name, true));
-						current = new renderers[name](container, scope, controller)
-						$(layoutparent).addClass(makeName("renderer", name));
-						$(body).addClass(makeName("videolayout", name, true));
-						//console.log("Switched to new video layout renderer", name, current);
-						return true;
-					}
+				} else if (current && current.name !== name) {
+					current.close(container, scope, controller);
+					$(container).removeAttr("style");
+					$(layoutparent).removeClass(makeName("renderer", current.name));
+					body.removeClass(makeName("videolayout", current.name, true));
+					current = new renderers[name](container, scope, controller)
+					$(layoutparent).addClass(makeName("renderer", name));
+					body.addClass(makeName("videolayout", name, true));
+					console.log("Switched to new video layout renderer", name, current);
+					return true;
 				}
 
 				return current.render(container, size, scope, videos, streams);

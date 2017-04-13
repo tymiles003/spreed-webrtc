@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -47,7 +47,9 @@ define([
 	'directives/youtubevideo',
 	'directives/bfi',
 	'directives/title',
-	'directives/welcome'], function(_, onEnter, onEscape, statusMessage, buddyList, buddyPictureCapture, buddyPictureUpload, settings, chat, audioVideo, usability, audioLevel, fileInfo, screenshare, roomBar, socialShare, page, contactRequest, defaultDialog, pdfcanvas, odfcanvas, presentation, youtubevideo, bfi, title, welcome) {
+	'directives/welcome',
+	'directives/menu',
+	'directives/ui'], function(_, onEnter, onEscape, statusMessage, buddyList, buddyPictureCapture, buddyPictureUpload, settings, chat, audioVideo, usability, audioLevel, fileInfo, screenshare, roomBar, socialShare, page, contactRequest, defaultDialog, pdfcanvas, odfcanvas, presentation, youtubevideo, bfi, title, welcome, menu, ui) {
 
 	var directives = {
 		onEnter: onEnter,
@@ -74,7 +76,9 @@ define([
 		youtubevideo: youtubevideo,
 		bfi: bfi,
 		title: title,
-		welcome: welcome
+		welcome: welcome,
+		menu: menu,
+		ui: ui
 	};
 
 	var initialize = function(angModule) {

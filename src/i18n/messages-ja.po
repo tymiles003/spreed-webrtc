@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Spreed WebRTC 1.0\n"
 "Report-Msgid-Bugs-To: simon@struktur.de\n"
-"POT-Creation-Date: 2014-12-08 16:48+0100\n"
+"POT-Creation-Date: 2016-02-17 14:15+0100\n"
 "PO-Revision-Date: 2014-04-23 22:25+0100\n"
 "Last-Translator: Curt Frisemo <curt.frisemo@spreed.com>\n"
 "Language-Team: Curt Frisemo <curt.frisemo@spreed.com>\n"
@@ -16,34 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 0.9.6\n"
-
-msgid "Share a YouTube video"
-msgstr ""
-
-msgid "Share a file as presentation"
-msgstr ""
-
-msgid "Share your screen"
-msgstr "画面を共有する."
-
-msgid "Chat"
-msgstr "チャット"
-
-msgid "Contacts"
-msgstr ""
-
-msgid "Mute microphone"
-msgstr "消音"
-
-msgid "Turn camera off"
-msgstr "カメラをオフにする"
-
-msgid "Settings"
-msgstr "設定"
-
-msgid "Your audio level"
-msgstr "あなたの音量"
+"Generated-By: Babel 1.3\n"
 
 msgid "Standard view"
 msgstr ""
@@ -199,6 +172,30 @@ msgstr "リトライ"
 msgid "Download failed."
 msgstr "ダウンロード失敗."
 
+msgid "Share a YouTube video"
+msgstr ""
+
+msgid "Share a file as presentation"
+msgstr ""
+
+msgid "Share your screen"
+msgstr "画面を共有する."
+
+msgid "Chat"
+msgstr "チャット"
+
+msgid "Contacts"
+msgstr ""
+
+msgid "Mute microphone"
+msgstr "消音"
+
+msgid "Turn camera off"
+msgstr "カメラをオフにする"
+
+msgid "Settings"
+msgstr "設定"
+
 msgid "Loading presentation ..."
 msgstr ""
 
@@ -231,11 +228,11 @@ msgstr "ルームチェンジ"
 msgid "Room"
 msgstr "ルーム"
 
-msgid "Main"
-msgstr "メイン"
-
 msgid "Leave room"
 msgstr "ルームを出る"
+
+msgid "Main"
+msgstr "メイン"
 
 msgid "Current room"
 msgstr "現在のルーム"
@@ -245,6 +242,41 @@ msgstr "画面共有オプション"
 
 msgid "Fit screen."
 msgstr "画面に合わせる"
+
+#, fuzzy
+msgid "Share screen"
+msgstr "画面を共有する."
+
+msgid "Please select what to share."
+msgstr ""
+
+#, fuzzy
+msgid "Screen"
+msgstr "画面に合わせる"
+
+msgid "Window"
+msgstr ""
+
+msgid "Application"
+msgstr ""
+
+msgid "Share the whole screen. Click share to select the screen."
+msgstr ""
+
+msgid "Share a single window. Click share to select the window."
+msgstr ""
+
+msgid ""
+"Share all windows of a application. This can leak content behind windows "
+"when windows get moved. Click share to select the application."
+msgstr ""
+
+#, fuzzy
+msgid "Share"
+msgstr "共有取り消し"
+
+msgid "OK"
+msgstr ""
 
 msgid "Profile"
 msgstr ""
@@ -328,6 +360,10 @@ msgstr "デフォルト・ルーム"
 msgid "Set alternative room to join at start."
 msgstr "スタート時に別のルームに参加する."
 
+#, fuzzy
+msgid "Notifications"
+msgstr "デスクトップ通知"
+
 msgid "Desktop notification"
 msgstr "デスクトップ通知"
 
@@ -340,11 +376,18 @@ msgstr "拒否 - ブラウザ設定を確認して下さい"
 msgid "Allowed"
 msgstr "許可"
 
+msgid "Sounds for incoming messages"
+msgstr ""
+
+#, fuzzy
+msgid "Ring on incoming calls"
+msgstr "着信中"
+
+msgid "Sounds for users in current room"
+msgstr ""
+
 msgid "Advanced settings"
 msgstr "詳細設定"
-
-msgid "Stereo audio"
-msgstr "ステレオ・オーディオ"
 
 msgid "Play audio on same device as selected microphone"
 msgstr ""
@@ -364,13 +407,28 @@ msgstr "ビデオ最高フレームレート"
 msgid "auto"
 msgstr "自動"
 
+#, fuzzy
+msgid "Send stereo audio"
+msgstr "ステレオ・オーディオ"
+
+msgid ""
+"Sending stereo audio disables echo cancellation. Enable only if you have "
+"stereo input."
+msgstr ""
+
+msgid "Detect CPU over use"
+msgstr ""
+
+msgid "Automatically reduces video quality as needed."
+msgstr ""
+
 msgid "Optimize for high resolution video"
 msgstr ""
 
 msgid "Reduce video noise"
 msgstr ""
 
-msgid "Detect CPU over use"
+msgid "Prefer VP9 video codec"
 msgstr ""
 
 msgid "Enable experiments"
@@ -451,6 +509,9 @@ msgstr "通話"
 msgid "Waiting for camera/microphone access"
 msgstr "カメラ・マイクの接続待ち."
 
+msgid "Your audio level"
+msgstr "あなたの音量"
+
 msgid "Checking camera and microphone access."
 msgstr "カメラ・マイクの接続確認中."
 
@@ -492,15 +553,14 @@ msgstr ""
 msgid "Room history"
 msgstr ""
 
-msgid "Videos are shared with everyone in this call."
+msgid "Please sign in."
+msgstr ""
+
+msgid "Videos play simultaneously for everyone in this call."
 msgstr ""
 
 msgid "YouTube URL"
 msgstr ""
-
-#, fuzzy
-msgid "Share"
-msgstr "共有取り消し"
 
 msgid ""
 "Could not load YouTube player API, please check your network / firewall "
@@ -523,10 +583,10 @@ msgid "Peer to peer chat is now off."
 msgstr "ピア・ツー・ピア・チャットがオフです."
 
 msgid " is now offline."
-msgstr "は今オフラインです"
+msgstr " は今オフラインです"
 
 msgid " is now online."
-msgstr "は今オンラインです"
+msgstr " は今オンラインです"
 
 msgid "You share file:"
 msgstr "あなたの共有ファイル:"
@@ -561,6 +621,9 @@ msgstr ""
 msgid "Edit Contact"
 msgstr ""
 
+msgid "Your browser does not support WebRTC. No calls possible."
+msgstr "ブラウザがWebRTCをサポートしていない為通話はできません."
+
 msgid "Close this window and disconnect?"
 msgstr ""
 
@@ -589,28 +652,25 @@ msgid "User hung up because of error."
 msgstr "エラーのため切断しました."
 
 msgid " is busy. Try again later."
-msgstr "は話中です.後で掛けなおしてください."
+msgstr " は話中です.後で掛けなおしてください."
 
 msgid " rejected your call."
-msgstr "着信拒否されました."
+msgstr " 着信拒否されました."
 
 msgid " does not pick up."
-msgstr "は電話にでません."
+msgstr " は電話にでません."
 
 #, fuzzy
 msgid " tried to call you"
-msgstr "は電話しようとしました."
+msgstr " は電話しようとしました."
 
 #, fuzzy
 msgid " called you"
-msgstr "から電話がありました."
+msgstr " から電話がありました."
 
 #, fuzzy
 msgid "Your browser is not supported. Please upgrade to a current version."
 msgstr "ブラウザがファイル転送をサポートしていません."
-
-msgid "Your browser does not support WebRTC. No calls possible."
-msgstr "ブラウザがWebRTCをサポートしていない為通話はできません."
 
 msgid "Chat with"
 msgstr "とチャットする"
@@ -681,6 +741,37 @@ msgstr "ここで私と会う:"
 #, fuzzy
 msgid "Room name"
 msgstr "あなたの名前"
+
+msgid ""
+"The request contains an invalid parameter value. Please check the URL of "
+"the video you want to share and try again."
+msgstr ""
+
+msgid ""
+"The requested content cannot be played in an HTML5 player or another "
+"error related to the HTML5 player has occurred. Please try again later."
+msgstr ""
+
+msgid ""
+"The video requested was not found. Please check the URL of the video you "
+"want to share and try again."
+msgstr ""
+
+msgid ""
+"The owner of the requested video does not allow it to be played in "
+"embedded players."
+msgstr ""
+
+#, python-format
+msgid ""
+"An unknown error occurred while playing back the video (%s). Please try "
+"again later."
+msgstr ""
+
+msgid ""
+"An unknown error occurred while playing back the video. Please try again "
+"later."
+msgstr ""
 
 msgid "Unknown URL format. Please make sure to enter a valid YouTube URL."
 msgstr ""

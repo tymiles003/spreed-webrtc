@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -51,11 +51,8 @@ require.config({
 		'humanize': 'libs/humanize',
 		'sha': 'libs/sha',
 		'sjcl': 'libs/sjcl',
-		'pdf': 'libs/pdf/pdf',
-		'pdf.worker': 'libs/pdf/pdf.worker',
-		'pdf.compatibility': 'libs/pdf/compatibility',
-		'webodf': 'libs/webodf',
 		'bootstrap-file-input': 'libs/bootstrap.file-input',
+		'webfont': 'libs/webfont',
 
 		'partials': '../partials',
 		'sounds': '../sounds',
@@ -114,29 +111,27 @@ require.config({
 			deps: ['jquery'],
 			exports: '$'
 		},
-		'sjcl': {
-			exports: 'sjcl'
-		},
-		'pdf': {
-			deps: ['pdf.compatibility'],
-			exports: 'PDFJS'
-		},
-		'webodf': {
-			exports: 'odf',
-			init: function() {
-				return {
-					webodf: this.webodf,
-					odf: this.odf,
-					runtime: this.runtime
-				};
-			}
-		},
 		'bootstrap-file-input': {
 			deps: ['jquery'],
 			exports: '$'
 		},
+		'webfont': {
+			exports: 'WebFont'
+		}
 	}
 });
+
+(function() {
+	// Dynamic extraD, go up all segments from our current app.
+	var extraD = require.toUrl('extra.d').split('/');
+	for (var i = 0; i < extraD.length - 1; i++) {
+		extraD[i] = '..'
+	}
+	extraD = extraD.join('/');
+	require.config({
+		'extra.d': extraD
+	});
+}());
 
 (function() {
 	var debugDefault = window.location.href.match(/(\?|&)debug($|&|=)/);
@@ -165,17 +160,21 @@ require.config({
 	window.debug(debugDefault && true);
 }());
 
+function fakeAlert(text) {
+	var loader = document.getElementById("loader");
+	loader.className = "fake-alert";
+	if (loader) {
+		loader.innerHTML = text;
+	} else {
+		window.alert(text);
+	}
+}
+
 require.onError = (function() {
-	var retrying = false;
 	return function(err) {
-		if (retrying) {
-			console.error("Error while loading " + err.requireType, err.requireModules);
-			return;
-		}
 		if (err.requireType === "timeout" || err.requireType === "scripterror") {
-			window.alert('Failed to load application. Confirm to retry.');
-			retrying = true;
-			document.location.reload(true);
+			console.error("Error while loading " + err.requireType, err.requireModules);
+			fakeAlert('Failed to load app!');
 		} else {
 			throw err;
 		}
@@ -190,7 +189,24 @@ if (Object.create) {
 		'underscore',
 		'angular',
 		'require',
-		'base'], function($, _, angular, require) {
+		'webfont',
+		'base'], function($, _, angular, require, webfont) {
+
+		// Load web fonts.
+		webfont.load({
+			custom: {
+				families: ["FontAwesome"],
+				testStrings: {
+					"FontAwesome": '\uf004\uf005'
+				}
+			},
+			active: function() {
+				console.log("Web fonts loaded.");
+			},
+			inactive: function() {
+				console.warn("Web font not available.");
+			}
+		});
 
 		var launcherApp = angular.module('launcherApp', []);
 		launcherApp.run(["$q", "$window", "$http", function($q, $window, $http) {
@@ -293,5 +309,5 @@ if (Object.create) {
 	});
 
 } else {
-	window.alert("Your browser does not support this application. Please update your browser to the latest version.");
+	fakeAlert("Your browser does not support this application. Please update your browser to the latest version.");
 }

@@ -33,10 +33,12 @@ AC_SUBST(I18N_COPYRIGHT)
 AC_SUBST(I18N_BUG_ADDRESS)
 
 # minimum required versions
-GO_VERSION_MIN=1.1
+GO_VERSION_MIN=1.4
 NODEJS_VERSION_MIN=0.6.0
 NODEJS_VERSION_STYLES_MIN=0.10.0
 SASS_VERSION_MIN=3.3.0
+SCSS_LINT_VERSION_MIN=0.33.0
+PO2JSON_VERSION_MIN=0.4.1
 
 AC_CONFIG_SRCDIR([src/app/spreed-webrtc-server/main.go])
 AC_CONFIG_MACRO_DIR([m4])
@@ -54,6 +56,13 @@ AC_PROG_SED
 AC_PROG_AWK
 
 AC_PATH_PROGS([FIND],[find])
+
+AC_PATH_PROGS([GPM],[gpm])
+if test x"${GPM}" != x"" ; then
+    AC_MSG_CHECKING([for version of gpm])
+    GPM_VERSION=`$GPM version 2>&1 | $SED 's/^>> gpm v//'`
+    AC_MSG_RESULT([$GPM_VERSION])
+fi
 
 AC_PATH_PROG([JSHINT],jshint, [], [$PWD/node_modules/.bin$PATH_SEPARATOR$PATH])
 if test x"${JSHINT}" != x"" ; then
@@ -86,6 +95,8 @@ AM_CONDITIONAL([DEFAULT_VENDOR_GOPATH], [test x"${VENDOR_GOPATH}" == x""])
 AM_CONDITIONAL([READONLY_VENDOR_GOPATH], [test -n "${VENDOR_GOPATH}" -a ! -w "${VENDOR_GOPATH}"])
 AM_COND_IF(DEFAULT_VENDOR_GOPATH, [AC_SUBST(VENDOR_GOPATH, $PWD/vendor)])
 AC_MSG_RESULT([$VENDOR_GOPATH])
+AX_COMPARE_VERSION([$GO_VERSION], [lt], [1.5], [GO_14="1"], [GO_14="0"])
+AM_CONDITIONAL([GO_14], [test x"${GO_14}" = x"1"])
 
 AC_PATH_PROGS([NODEJS],[nodejs node])
 if test x"${NODEJS}" == x"" ; then
@@ -121,6 +132,15 @@ else
     AX_COMPARE_VERSION([$SASS_VERSION], [lt], [$SASS_VERSION_MIN],
         [AC_MSG_WARN([Please install compass with sass $SASS_VERSION_MIN or newer before trying to build styles (found sass $SASS_VERSION).])
         SASS_SUPPORT_STYLES=no],[SASS_SUPPORT_STYLES=yes])
+fi
+
+AC_PATH_PROG([SCSS_LINT],scss-lint, [], [$PWD/node_modules/.bin$PATH_SEPARATOR$PATH])
+if test x"${SCSS_LINT}" == x"" ; then
+    AC_MSG_WARN([Please install scss-lint to lint styles.])
+else
+    AC_MSG_CHECKING([for version of scss-lint])
+    SCSS_LINT_VERSION=`$SCSS_LINT --version | $SED 's/^scss-lint //' | $SED 's/ .*//'`
+    AC_MSG_RESULT([$SCSS_LINT_VERSION])
 fi
 
 if test x"${SASS}" != x"" ; then
@@ -173,16 +193,18 @@ if test x"${NPM}" != x"" ; then
     else
         AC_MSG_RESULT([ok])
         AC_MSG_CHECKING([for version of po2json])
-        PO2JSON_VERSION=`{ $NPM list --global & $NPM list; } 2>&1 | $GREP -v 'required' | $GREP po2json@ | $SED 's/^.*po2json@//'`
+        PO2JSON_VERSION=`{ $NPM list --global & $NPM list; } 2>&1 | $GREP -v 'required' | $GREP po2json@ | tail -n1 | $SED 's/^.*po2json@//'`
         AC_MSG_RESULT([$PO2JSON_VERSION])
-        NODEJS_SUPPORT_PO2JSON=yes
+        AX_COMPARE_VERSION([$PO2JSON_VERSION], [lt], [$PO2JSON_VERSION_MIN],
+            [AC_MSG_WARN([Please install po2json version $PO2JSON_VERSION_MIN or newer before trying to build translations (found po2json $PO2JSON_VERSION).])
+            NODEJS_SUPPORT_PO2JSON=no],[NODEJS_SUPPORT_PO2JSON=yes])
     fi
 else
     AC_MSG_WARN([Please install npm and the the node.js module po2json to build i18n.])
 fi
 AC_SUBST(NODEJS_SUPPORT_PO2JSON)
 
-VERSION=`head -n1 $PWD/debian/changelog | $AWK -F'[[()]]' '{print $2}'`
+VERSION=`head -n1 $PWD/CHANGELOG.md | $AWK '{print $2}'`
 PACKAGE_VERSION="$VERSION"
 PACKAGE_STRING="$PACKAGE_NAME $PACKAGE_VERSION"
 AC_DEFINE_UNQUOTED(VERSION, ["$VERSION"], [Version number of package])

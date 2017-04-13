@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -23,18 +23,23 @@
   &.link {
     color: $social-email-color;
   }
+
   &.email {
     color: $social-email-color;
   }
+
   &.facebook {
     color: $social-facebook-color;
   }
+
   &.google {
     color: $social-google-color;
   }
+
   &.twitter {
     color: $social-twitter-color;
   }
+
   &.xing {
     color: $social-xing-color;
   }

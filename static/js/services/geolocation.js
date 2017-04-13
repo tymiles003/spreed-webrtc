@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -29,8 +29,8 @@ define(['underscore', 'modernizr'], function(_, Modernizr) {
 
 		var defaults = {
 			enableHighAccuracy: true,
-  			timeout: 5000,
-  			maximumAge: 0
+			timeout: 5000,
+			maximumAge: 0
 		};
 
 		return {

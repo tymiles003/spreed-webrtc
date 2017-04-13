@@ -57,6 +57,10 @@ listen = 127.0.0.1:8080
 ; See http://tools.ietf.org/html/draft-uberti-behave-turn-rest-00 for details.
 ; A supported TURN server is https://code.google.com/p/rfc5766-turn-server/.
 ;turnSecret = the-default-turn-shared-secret-do-not-keep
+; Enable renegotiation support. Set to true to tell clients that they can
+; renegotiate peer connections when required. Firefox support is not complete,
+; so do not enable if you want compatibility with Firefox clients.
+;renegotiation = false
 ; Session secret to use for session id generator. 32 or 64 bytes of random data
 ; are recommented (hex encoded). A warning will be logged if hex decode fails.
 ; You can generate a secret easily with "xxd -ps -l 32 -c 32 /dev/random".
@@ -78,9 +82,14 @@ encryptionSecret = tne-default-encryption-block-key
 ; all users will join this room if enabled. If it is disabled then a room join
 ; form will be shown instead.
 ;defaultRoomEnabled = true
+; Whether a user account is required to join a room. This only has an effect
+; if user accounts are enabled. Optional, defaults to false.
+;authorizeRoomJoin = false
 ; Whether a user account is required to create a room. This only has an effect
 ; if user accounts are enabled. Optional, defaults to false.
 ;authorizeRoomCreation = false
+; Wether the pipelines API should be enabled. Optional, defaults to false.
+;pipelinesEnabled = false
 ; Server token is a public random string which is used to enhance security of
 ; server generated security tokens. When the serverToken is changed all existing
 ; nonces become invalid. Use 32 or 64 characters (eg. 16 or 32 byte hex).
@@ -92,28 +101,44 @@ serverRealm = local
 ; Full path to an extra templates directory. Templates in this directory ending
 ; with .html will be parsed on startup and can be used to fill the supported
 ; extra-* template slots. If the extra folder has a sub folder "static", the
-; resources in this static folder will be available as /extra/static/filename
+; resources in this static folder will be available as /extra/static/...
 ; relative to your servers base URL.
 ;extra = /usr/share/spreed-webrtc-server/extra
+; Full path to an extra.d directory. Subfolders in this directory will be
+; searched for head.html and body.html on startup. If found, those templates
+; will be automatically included for the web client. In addition,
+; sub-folder/static will be made available by URL at /extra.d/static/<n>/...
+; relative to your servers base URL.
 ; URL relative to the servers base path for a plugin javascript file which is
 ; automatically loaded on web client start for all users. You can put your
 ; plugin in the extra/static folder (see above) or provide another folder using
 ; a front end webserver. Check the doc folder for more info about plugins and
 ; examples.
+;extra.d = /usr/share/spreed-webrtc-server/extra.d
 ;plugin = extra/static/myplugin.js
 ; Content-Security-Policy HTTP response header value.
 ; Spreed WebRTC requires inline styles, WebSocket connection to itself and
 ; data: URL for images.
 ; The currently recommended CSP is:
 ;   default-src 'self';
+;   frame-src 'self' blob:;
 ;   style-src 'self' 'unsafe-inline';
 ;   img-src 'self' data: blob:;
 ;   connect-src 'self' wss://server:port/ws blob:;
 ;   font-src 'self' data: blob:;
+;   media-src 'self' blob:;
 ;contentSecurityPolicy =
 ; Content-Security-Policy-Report-Only HTTP response header value. Use this
 ; to test your CSP before putting it into production.
 ;contentSecurityPolicyReportOnly =
+
+[modules]
+; Modules provide optional functionality. Modules are enabled by default and
+; can be disabled by setting false to their corresponding configuration.
+;screensharing = true
+;youtube = true
+;presentation = true
+;contacts = true
 
 [log]
 ;logfile = /var/log/spreed-webrtc-server.log
@@ -135,9 +160,7 @@ enabled = false
 ;   The userid is provided as CommonName with a certificate provided with TLS
 ;   client authentication. When you use this with a front end proxy for TLS
 ;   termination, that proxy has to validate the certificate and inject certain
-;   headers into the proxy connection. In certificate mode the server can act as
-;   a signing CA to sign incoming user certificate requests with a private key
-;   when allowRegistration is true. While certificate mode offers the highest
+;   headers into the proxy connection. While certificate mode offers the highest
 ;   security it is currently considered experimental and the user experience
 ;   varies between browsers and platforms.
 ;mode = sharedsecret
@@ -177,3 +200,29 @@ enabled = false
 ; enable userid creation/registration. Users are created according the settings
 ; of the currently configured mode (see above).
 ;allowRegistration = false
+
+[nats]
+; Set to true, to enable triggering channelling events via NATS
+;channelling_trigger = false
+;channelling_trigger_subject = channelling.trigger
+; NATS server URL
+;url = nats://127.0.0.1:4222
+; NATS connect establish timeout in seconds
+;establishTimeout = 60
+; Use client_id to distinguish between multipe servers. The value is sent
+; together with every NATS request. Defaults to empty.
+;client_id =
+
+[roomtypes]
+; You can define room types that should be used for given room names instead of
+; the default type "Room". Use format "RegularExpression = RoomType" and make
+; sure the regular expression doesn't contain any "=" or ":".
+;
+; Available room types:
+; "Conference"
+;   All participants joining the room automatically call each other and are in
+;   a conference.
+;
+; Example (all rooms below "conference/" are conference rooms):
+;^conference/.+ = Conference
+;

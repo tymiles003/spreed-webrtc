@@ -4,7 +4,7 @@
 /src/github.com
 /src/golang.struktur.de
 /*.pprof
-/server.conf
+/server.conf*
 /*.log
 /changelog*.txt
 /src/styles/.sass-cache
@@ -19,6 +19,7 @@ vendor/*
 /build/out/
 /.sass-cache
 /extra
+/extra.d
 /src/i18n/*.mo
 server.key
 server.csr

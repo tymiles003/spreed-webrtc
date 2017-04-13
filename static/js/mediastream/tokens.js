@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -21,6 +21,8 @@
 
 "use strict";
 define(['jquery', 'underscore'], function($, _) {
+
+	var tokens;
 
 	var Token = function(handlerKey) {
 		this.e = $({});
@@ -179,7 +181,7 @@ define(['jquery', 'underscore'], function($, _) {
 
 	};
 
-	var tokens = new Tokens();
+	tokens = new Tokens();
 	return tokens;
 
 });

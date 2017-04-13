@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -32,6 +32,7 @@ define([], function() {
 
 			$scope.randomRoom = rooms.randomRoom;
 			$scope.canCreateRooms = rooms.canCreateRooms;
+			$scope.canJoinRooms = rooms.canJoinRooms;
 			$scope.joinRoomByName = function(name) {
 				if ($scope.welcome.$invalid) {
 					return;

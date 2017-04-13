@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -26,7 +26,8 @@ define([
 	'ua-parser',
 	'sjcl',
 	'modernizr',
-	'mediastream/tokens'
+	'mediastream/tokens',
+	'webrtc.adapter'
 
 ], function($, _, uaparser, sjcl, Modernizr, tokens) {
 
@@ -43,6 +44,14 @@ define([
 		// Create encryption key from server token and browser name.
 		var secureKey = sjcl.codec.base64.fromBits(sjcl.hash.sha256.hash(context.Cfg.Token + uaparser().browser.name));
 
+		// Apply configuration details.
+		webrtc.settings.renegotiation = context.Cfg.Renegotiation && true;
+		if (webrtc.settings.renegotiation && $window.webrtcDetectedBrowser !== "chrome") {
+			console.warn("Disable renegotiation in anything but Chrome for now.");
+			webrtc.settings.renegotiation = false;
+		}
+
+		// mediaStream service API.
 		var mediaStream = {
 			version: version,
 			ws: url,
@@ -243,8 +252,9 @@ define([
 					}, 1000);
 
 					if (context.Cfg.Tokens) {
+						var prompt, check;
 						var storedCode = localStorage.getItem("mediastream-access-code");
-						var prompt = function() {
+						prompt = function() {
 							alertify.dialog.prompt(translation._("Access code required"), function(code) {
 								if (!code) {
 									prompt();
@@ -255,7 +265,7 @@ define([
 							}, prompt);
 						};
 						var url = restURL.api("tokens");
-						var check = function(code) {
+						check = function(code) {
 							$http({
 								method: "POST",
 								url: url,

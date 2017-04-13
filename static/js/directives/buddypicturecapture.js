@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -25,7 +25,18 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 	// buddyPictureCapture
 	return ["$compile", "$window", function($compile, $window) {
 
-		var controller = ['$scope', 'safeApply', '$timeout', '$q', function($scope, safeApply, $timeout, $q) {
+		var controller = ['$scope', 'safeApply', '$timeout', '$q', "mediaDevices", "userMedia", function($scope, safeApply, $timeout, $q, mediaDevices, userMedia) {
+
+			var localStream = null;
+			var delayToTakePicture = 3000;
+			var countDownFrom = 3;
+
+			var takePictureCountDown;
+			var writeVideoToCanvas;
+			var writePreviewPic;
+			var makePicture;
+			var videoStop;
+			var videoStart;
 
 			// Buddy picutre capture size.
 			$scope.captureSize = {
@@ -41,12 +52,8 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 			$scope.canvasPic = null;
 			$scope.canvasPrev = null;
 
-			var localStream = null;
-			var delayToTakePicture = 3000;
-			var countDownFrom = 3;
-
 			// Counts down from start to 1
-			var takePictureCountDown = function(start, delayTotal) {
+			takePictureCountDown = function(start, delayTotal) {
 				$scope.countingDown = true;
 				$scope.countdown = {};
 				$scope.countdown.num = start;
@@ -63,7 +70,7 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 				}
 			};
 
-			var writeVideoToCanvas = function(canvas) {
+			writeVideoToCanvas = function(canvas) {
 
 				var videoWidth = $scope.video.videoWidth;
 				var videoHeight = $scope.video.videoHeight;
@@ -89,12 +96,12 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 
 			};
 
-			var writePreviewPic = function() {
+			writePreviewPic = function() {
 				writeVideoToCanvas($scope.canvasPrev);
 				$scope.preview = $scope.canvasPrev.toDataURL("image/jpeg");
 			};
 
-			var makePicture = function(stream, cntFrom, delayTotal) {
+			makePicture = function(stream, cntFrom, delayTotal) {
 				takePictureCountDown(cntFrom, delayTotal);
 				$timeout(function() {
 					$scope.flash.addClass("flash");
@@ -107,15 +114,15 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 				}, delayTotal);
 			};
 
-			var videoStop = function(stream, video) {
+			videoStop = function(stream, video) {
 				if (stream) {
 					video.pause();
-					stream.stop();
+					userMedia.stopUserMediaStream(stream);
 					stream = null;
 				}
 			};
 
-			var videoStart = function() {
+			videoStart = function() {
 				$scope.waitingForPermission = true;
 				var videoConstraints = true;
 				var videoAllowed = $q.defer();
@@ -126,16 +133,16 @@ define(['jquery', 'underscore', 'text!partials/buddypicturecapture.html'], funct
 						}]
 					};
 				}
-				$window.getUserMedia({
+				mediaDevices.getUserMedia({
 					video: videoConstraints
-				}, function(stream) {
+				}).then(function(stream) {
 					$scope.showTakePicture = true;
 					localStream = stream;
 					$scope.waitingForPermission = false;
 					$window.attachMediaStream($scope.video, stream);
 					safeApply($scope);
 					videoAllowed.resolve(true);
-				}, function(error) {
+				}).catch(function(error) {
 					console.error('Failed to get access to local media. Error code was ' + error.code);
 					$scope.waitingForPermission = false;
 					safeApply($scope);

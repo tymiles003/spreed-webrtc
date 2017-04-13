@@ -1,6 +1,6 @@
 /*
  * Spreed WebRTC.
- * Copyright (C) 2013-2014 struktur AG
+ * Copyright (C) 2013-2015 struktur AG
  *
  * This file is part of Spreed WebRTC.
  *
@@ -25,7 +25,8 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 	return ["$compile", "safeDisplayName", "mediaStream", "safeApply", "desktopNotify", "translation", "playSound", "fileUpload", "randomGen", "buddyData", "appData", "$timeout", "geolocation", function($compile, safeDisplayName, mediaStream, safeApply, desktopNotify, translation, playSound, fileUpload, randomGen, buddyData, appData, $timeout, geolocation) {
 
 		var displayName = safeDisplayName;
-		var group_chat_id = "";
+		var groupChatId = "";
+		var maxMessageSize = 200000;
 
 		var controller = ['$scope', '$element', '$attrs', function($scope, $element, $attrs) {
 
@@ -35,13 +36,16 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 			var ctrl = this;
 			var rooms = ctrl.rooms = {};
 			ctrl.visibleRooms = [];
-			ctrl.group = group_chat_id;
+			ctrl.group = groupChatId;
 			ctrl.get = function(id) {
 				return ctrl.rooms[id];
 			}
 
 			$scope.currentRoom = null;
 			$scope.currentRoomActive = false;
+			$scope.maxMessageSize = maxMessageSize;
+			$scope.autoFocusDisabled = false;
+
 			$scope.getVisibleRooms = function() {
 				var res = [];
 				for (var i = 0; i < ctrl.visibleRooms.length; i++) {
@@ -75,7 +79,7 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 					if (!with_message) {
 						return;
 					}
-					// No room with this id, get one with the from id
+					// No room with this id, get one with the from id.
 					$scope.$emit("startchat", from, {
 						restore: with_message
 					});
@@ -87,14 +91,19 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 					room.peerIsTyping = "no";
 					room.p2p( !! p2p);
 					if (room.firstmessage) {
+						// Auto show when this is the first message.
 						$scope.showRoom(room.id, null, {
 							restore: with_message
 						});
 					}
+					if (!room.enabled) {
+						// Reenable chat room when receiving messages again.
+						room.enabled = true;
+					}
 				}
 
-				room.$broadcast("received", from, data);
 				safeApply(room);
+				room.$broadcast("received", from, data);
 
 			});
 
@@ -105,10 +114,6 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 						case "Left":
 							if (data.Status !== "soft") {
 								room.enabled = false;
-								room.$broadcast("received", data.Id, {
-									Type: "LeftOrJoined",
-									"LeftOrJoined": "left"
-								});
 								safeApply(room);
 							}
 							break;
@@ -116,10 +121,6 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 							if (!room.enabled) {
 								room.enabled = true;
 								_.delay(function() {
-									room.$broadcast("received", data.Id, {
-										Type: "LeftOrJoined",
-										"LeftOrJoined": "joined"
-									});
 									safeApply(room);
 								}, 1000);
 							}
@@ -133,7 +134,7 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 			$scope.$parent.$on("startchat", function(event, id, options) {
 
 				//console.log("startchat requested", event, id);
-				if (id === group_chat_id) {
+				if (id === groupChatId) {
 					$scope.showGroupRoom(null, options);
 				} else {
 					$scope.showRoom(id, {
@@ -145,7 +146,7 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 
 			$scope.$parent.$on("requestcontact", function(event, id, options) {
 
-				if (id !== group_chat_id) {
+				if (id !== groupChatId) {
 					// Make sure the contact id is valid.
 					var ad = appData.get();
 					if (!ad.userid) {
@@ -245,6 +246,9 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 						};
 						subscope.sendChat = function(to, message, status, mid, noloop) {
 							//console.log("send chat", to, scope.peer);
+							if (message && message.length > maxMessageSize) {
+								return mid;
+							}
 							var peercall = mediaStream.webrtc.findTargetCall(to);
 							if (peercall && peercall.peerconnection && peercall.peerconnection.datachannelReady) {
 								subscope.p2p(true);
@@ -254,7 +258,6 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 								subscope.p2p(false);
 								return subscope.sendChatServer(to, message, status, mid, noloop);
 							}
-							return mid;
 						};
 						subscope.sendChatPeer2Peer = function(peercall, to, message, status, mid, noloop) {
 							if (message && !mid) {
@@ -381,7 +384,7 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 								// Make sure we are not in group chat or the message is from ourselves
 								// before we beep and shout.
 								if (!subscope.isgroupchat && from !== sessionid) {
-									playSound.play("message1");
+									playSound.play("chatmessage");
 									desktopNotify.notify(translation._("Message from ") + displayName(from), message);
 									appData.e.triggerHandler("uiNotification", ["chatmessage", {from: from, message: message, first: subscope.firstmessage}]);
 								}
@@ -392,16 +395,27 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 								}
 							}
 						});
+						subscope.$watch("enabled", function(enabled, old) {
+							if (enabled === old) {
+								return;
+							}
+							//console.log("enabled", enabled, old);
+							var value;
+							if (enabled) {
+								value = "resumed";
+							} else {
+								value = "left";
+							}
+							subscope.$broadcast("received", subscope.id, {
+								Type: "LeftOrJoined",
+								"LeftOrJoined": value
+							});
+						});
 						chat(subscope, function(clonedElement, $scope) {
 
 							pane.append(clonedElement);
 							$scope.element = clonedElement;
 							$scope.visible = true;
-							if (options.autofocus) {
-								_.defer(function() {
-									$scope.$broadcast("focus");
-								});
-							}
 
 							var sendFiles = function(files) {
 								_.each(files, function(f) {
@@ -439,19 +453,20 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 								subscope.index = index;
 								subscope.visible = true;
 							}
-						}
-						if (options.autofocus && subscope.visible) {
-							subscope.$broadcast("focus");
+							if (!subscope.enabled) {
+								subscope.enabled = true;
+							}
 						}
 
 					}
 
 					if (!options.noactivate) {
-						scope.activateRoom(subscope.id, true);
+						scope.activateRoom(subscope.id, true, !!options.autofocus);
 					}
 
 					if (options.restore && !options.noenable) {
 						if (!scope.layout.chat) {
+							scope.autoFocusDisabled = true;
 							scope.layout.chat = true;
 						}
 					}
@@ -503,7 +518,7 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 					scope.layout.chatMaximized = !scope.layout.chatMaximized;
 				};
 
-				scope.activateRoom = function(id, active) {
+				scope.activateRoom = function(id, active, autofocus) {
 					var subscope = controller.rooms[id];
 					if (!subscope) {
 						return;
@@ -534,6 +549,13 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 					if (flip) {
 						pane.toggleClass("flip");
 					}
+					if (active && autofocus && !scope.autoFocusDisabled) {
+						_.defer(function() {
+							if (scope.layout.chat) {
+								subscope.$broadcast("focus");
+							}
+						});
+					}
 				};
 
 				scope.deactivateRoom = function() {
@@ -545,13 +567,22 @@ define(['jquery', 'underscore', 'text!partials/chat.html', 'text!partials/chatro
 						pane.removeClass("flip");
 					}
 					scope.layout.chatMaximized = false;
+					if (chat) {
+						if (!scope.autoFocusDisabled) {
+							if (scope.currentRoom && scope.currentRoom.active) {
+								scope.activateRoom(scope.currentRoom.id, true, true);
+							}
+						} else {
+							scope.autoFocusDisabled = false;
+						}
+					}
 				});
 
 				scope.$on("room.updated", function(event, room) {
 					var subscope = scope.showGroupRoom(null, {
 						restore: true,
 						noenable: true,
-						noactivate: true
+						noactivate: !!scope.currentRoomActive
 					});
 					if (scope.currentRoomName != room.Name) {
 						var msg = $("<span>").text(translation._("You are now in room %s ...", room.Name));
